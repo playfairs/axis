@@ -79,6 +79,11 @@ class Axis(commands.Bot):
                 "warning",
             )
         elif isinstance(error, commands.CommandNotFound):
+            embed = discord.Embed(
+                description=f"> {ctx.author.mention}: {ctx.invoked_with} does not exist.",
+                color=discord.Colour.yellow(),
+            )
+            await ctx.send(embed=embed)
             title, color, level = f"? NOT_FOUND [{timestamp}]", "yellow", "info"
         elif isinstance(error, commands.CommandOnCooldown):
             lines.append(f"Error: On cooldown: {error.retry_after:.2f}s")
