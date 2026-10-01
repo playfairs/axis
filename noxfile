@@ -1,0 +1,7 @@
+tasks:
+    install:
+        run: uv venv --python "$(command -v python3)" --clear .venv
+        run: uv pip install --python .venv/bin/python --upgrade -r requirements.txt
+    start:
+        @nox install
+        run: .venv/bin/python -m bot.main

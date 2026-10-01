@@ -1,0 +1,16 @@
+project "axis" {
+    description = "A discord bot that covers every angle."
+    license = file("./UNLICENSE")
+    version = file("./VERSION")
+    authors = ["playfairs"]
+
+    extra.env {
+        PYTHONPATH = "."
+    }
+
+    executable.python "axis" {
+        sources = ["bot/main.py"]
+        flags = []
+        install = false
+    }
+}
