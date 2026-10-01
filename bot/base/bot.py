@@ -1,8 +1,13 @@
+import discord_ios
+
+import os
+
 import jishaku
 
 from bot.base.imports import commands, discord, logger
 from bot.config.bot import BotConfig
 from bot.logging.setup import create_box
+from bot.rpc.lastfm import LastFMActivity
 
 
 class Axis(commands.Bot):
@@ -14,6 +19,7 @@ class Axis(commands.Bot):
             help_command=None,
         )
         self.config = config
+        self._lastfm_activity: LastFMActivity | None = None
         self.add_check(self._jishaku_owner_check)
 
     async def setup_hook(self) -> None:
@@ -31,6 +37,20 @@ class Axis(commands.Bot):
             logger.info("Loading extension {}", extension)
             await self.load_extension(extension)
             logger.info("Loaded extension {}", extension)
+
+        lastfm_api_key = os.getenv("LASTFM_API_KEY")
+        if lastfm_api_key:
+            self._lastfm_activity = LastFMActivity(self, lastfm_api_key)
+            self._lastfm_activity.start()
+        else:
+            logger.warning(
+                "LASTFM_API_KEY is not configured; Last.fm activity is disabled."
+            )
+
+    async def close(self) -> None:
+        if self._lastfm_activity is not None:
+            await self._lastfm_activity.close()
+        await super().close()
 
     async def _jishaku_owner_check(self, ctx: commands.Context) -> bool:
         if ctx.command is not None and ctx.command.cog_name == "Jishaku":
@@ -119,5 +139,7 @@ class Axis(commands.Bot):
     async def on_ready(self) -> None:
         logger.info("Connected to Discord as {}", self.user)
 
-    async def on_error(self, event_method: str, *args: object, **kwargs: object) -> None:
+    async def on_error(
+        self, event_method: str, *args: object, **kwargs: object
+    ) -> None:
         logger.exception("Unhandled error in Discord event {}", event_method)

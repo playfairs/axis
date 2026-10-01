@@ -1,3 +1,7 @@
+# bot.extensions.information:whois
+# Show basic information about a user.
+
+from discord import app_commands
 from bot.base.imports import commands, discord
 from bot.handlers.missing_avatar import get_avatar
 
@@ -51,7 +55,10 @@ class WhoisView(discord.ui.LayoutView):
         self.add_item(discord.ui.Container(*container_items))
 
 
-@commands.command(name="whois")
+@commands.hybrid_command(name="whois")
+@app_commands.describe(user="Show basic information about a user.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 async def whois(
     ctx: commands.Context,
     user: discord.User | None = None,

@@ -1,3 +1,7 @@
+# bot.extensions.information:banner
+# Show's a users banner if any.
+
+from discord import app_commands
 from bot.base.imports import commands, discord
 
 
@@ -17,7 +21,10 @@ class BannerView(discord.ui.LayoutView):
         self.add_item(container)
 
 
-@commands.command(name="banner")
+@commands.hybrid_command(name="banner")
+@app_commands.describe(user="Show's a users banner if any,")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 async def banner(
     ctx: commands.Context,
     user: discord.User | None = None,

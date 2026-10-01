@@ -1,5 +1,8 @@
 {
   "files.associations": {
     "VERSION": "plaintext"
+  },
+  "files.exclude": {
+    "**/__pycache__": true
   }
 }

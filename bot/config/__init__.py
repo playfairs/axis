@@ -5,7 +5,5 @@ class DISCORD:
 
 
 class COGS:
-    EXTENSIONS = (
-        "bot.extensions.information",
-    )
+    EXTENSIONS = ("bot.extensions.information",)
     SKIP = frozenset()

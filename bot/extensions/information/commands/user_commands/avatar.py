@@ -1,3 +1,7 @@
+# bot.extensions.information:avatar
+# Show's a users avatar, or default avatar if none.
+
+from discord import app_commands
 from bot.base.imports import commands, discord
 from bot.handlers.missing_avatar import get_avatar
 
@@ -18,7 +22,10 @@ class AvatarView(discord.ui.LayoutView):
         self.add_item(container)
 
 
-@commands.command(name="avatar", aliases=("av",))
+@commands.hybrid_command(name="avatar", aliases=("av",))
+@app_commands.describe(user="Show's a users avatar, or default avatar if none.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 async def avatar(
     ctx: commands.Context,
     user: discord.User | discord.Member | None = None,

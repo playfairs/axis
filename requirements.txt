@@ -2,3 +2,5 @@ discord.py
 jishaku
 loguru
 python-dotenv
+psutil
+discord-ios

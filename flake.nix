@@ -14,6 +14,12 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
+      formatter = forAllSystems (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        import ./nix/formatter.nix { inherit pkgs; });
+
       devShells = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
@@ -22,6 +28,7 @@
           default = pkgs.mkShell {
             packages = [
               pkgs.python3
+              pkgs.ruff
               pkgs.uv
             ];
           };
