@@ -1,6 +1,7 @@
 import discord_ios
 
 import os
+from typing import Any
 
 import jishaku
 
@@ -51,6 +52,11 @@ class Axis(commands.Bot):
         if self._lastfm_activity is not None:
             await self._lastfm_activity.close()
         await super().close()
+
+    def dispatch(self, event: str, /, *args: Any, **kwargs: Any) -> None:
+        if self.is_closed():
+            return
+        super().dispatch(event, *args, **kwargs)
 
     async def _jishaku_owner_check(self, ctx: commands.Context) -> bool:
         if ctx.command is not None and ctx.command.cog_name == "Jishaku":
