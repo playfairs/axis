@@ -1,0 +1,61 @@
+from bot.base.imports import commands, discord
+from bot.handlers.missing_avatar import get_avatar
+
+
+class WhoisView(discord.ui.LayoutView):
+    def __init__(
+        self,
+        user: discord.User | discord.Member,
+        banner: discord.Asset | None,
+    ) -> None:
+        super().__init__()
+        display_name = (
+            user.display_name
+            if isinstance(user, discord.Member)
+            else user.global_name or user.name
+        )
+        details = discord.ui.TextDisplay(
+            f"**Display name**: {display_name}\n"
+            f"**User ID**: `{user.id}`\n"
+            f"**Created**: <t:{int(user.created_at.timestamp())}:D> "
+            f"- <t:{int(user.created_at.timestamp())}:R>\n"
+            f"**Type**: {'Bot' if user.bot else 'User'}\n"
+            f"**Mutual servers**: {len(user.mutual_guilds)}"
+        )
+        container_items: list[discord.ui.Item] = [
+            discord.ui.TextDisplay(f"## {user.name}"),
+            discord.ui.Separator(),
+            discord.ui.Section(
+                details,
+                accessory=discord.ui.Thumbnail(
+                    get_avatar(user).url,
+                    description=f"{user.name}'s avatar",
+                ),
+            ),
+        ]
+
+        if banner is not None:
+            container_items.extend(
+                (
+                    discord.ui.Separator(),
+                    discord.ui.TextDisplay("**Banner:**"),
+                    discord.ui.MediaGallery(
+                        discord.MediaGalleryItem(
+                            banner.url,
+                            description=f"{user.name}'s banner",
+                        )
+                    ),
+                )
+            )
+
+        self.add_item(discord.ui.Container(*container_items))
+
+
+@commands.command(name="whois")
+async def whois(
+    ctx: commands.Context,
+    user: discord.User | None = None,
+) -> None:
+    target = user or ctx.author
+    fetched_user = await ctx.bot.fetch_user(target.id)
+    await ctx.send(view=WhoisView(target, fetched_user.banner))
