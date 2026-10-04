@@ -1,13 +1,14 @@
 import json
+import logging
 import re
 from datetime import UTC, date, datetime, timedelta
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import quote
 
-from loguru import logger
-
 from api.native import APITransportError, request
+
+logger = logging.getLogger(__name__)
 
 GITHUB_API_URL = "https://api.github.com/users/"
 GITHUB_CONTRIBUTIONS_URL = "https://github.com/users/{}/contributions"
@@ -123,11 +124,7 @@ async def _add_contributions_last_year(
         ValueError,
         UnicodeError,
     ) as error:
-        logger.warning(
-            "Could not fetch GitHub contributions for {} ({}); omitting count.",
-            username,
-            type(error).__name__,
-        )
+        logger.warning(f"Could not fetch GitHub contributions for {username} ({type(error).__name__}); omitting count.")
         return
     profile["contributions_last_year"] = contribution_count
 

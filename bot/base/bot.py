@@ -15,8 +15,6 @@
 # See the UNLICENSE file for details.
 
 
-import discord_ios
-
 import os
 from typing import Any
 
@@ -24,7 +22,7 @@ import jishaku
 
 from bot.base.imports import commands, discord, logger
 from bot.config.bot import BotConfig
-from bot.logging.setup import create_box
+from bot.logging.setup import Logger
 from bot.rpc.lastfm import LastFMActivity
 
 
@@ -49,12 +47,12 @@ class Axis(commands.Bot):
         for extension in self.config.extensions:
             extension_name = extension.rsplit(".", 1)[-1]
             if extension_name in self.config.skipped_extensions:
-                logger.info("Skipping configured extension {}", extension)
+                logger.info(f"Skipping configured extension {extension}")
                 continue
 
-            logger.info("Loading extension {}", extension)
+            logger.info(f"Loading extension {extension}")
             await self.load_extension(extension)
-            logger.info("Loaded extension {}", extension)
+            logger.info(f"Loaded extension {extension}")
 
         lastfm_api_key = os.getenv("LASTFM_API_KEY")
         if lastfm_api_key:
@@ -83,7 +81,7 @@ class Axis(commands.Bot):
     async def on_command_completion(self, ctx: commands.Context) -> None:
         timestamp = ctx.message.created_at.astimezone().strftime("%H:%M:%S")
         logger.bind(axis_box=True).info(
-            create_box(
+            Logger.create_box(
                 f"✓ SUCCESS [{timestamp}]",
                 [
                     f"User: {ctx.author} ({ctx.author.id})",
@@ -151,7 +149,7 @@ class Axis(commands.Bot):
             lines.append(f"Error: {underlying_error}")
             title, color, level = f"✗ UNKNOWN_ERROR [{timestamp}]", "red", "error"
 
-        box = create_box(title, lines, color)
+        box = Logger.create_box(title, lines, color)
         if isinstance(error, commands.CommandInvokeError):
             logger.bind(axis_box=True).opt(exception=error.original).log(
                 level.upper(), box
@@ -160,9 +158,9 @@ class Axis(commands.Bot):
             logger.bind(axis_box=True).log(level.upper(), box)
 
     async def on_ready(self) -> None:
-        logger.info("Connected to Discord as {}", self.user)
+        logger.info(f"Connected to Discord as {self.user}")
 
     async def on_error(
-        self, event_method: str, *args: object, **kwargs: object
+        self, event: str, *args: object, **kwargs: object
     ) -> None:
-        logger.exception("Unhandled error in Discord event {}", event_method)
+        logger.exception(f"Unhandled error in Discord event {event}")

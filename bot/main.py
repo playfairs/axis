@@ -14,16 +14,16 @@
 #
 # See the UNLICENSE file for details.
 
-
 import asyncio
+import logging
 import sys
 
 from bot.base.bot import Axis
 from bot.config.bot import BotConfig
 from bot.config.env import EnvironmentConfig
-from bot.logging.setup import configure_logging
-from loguru import logger
+from bot.logging.setup import Logger
 
+logger = logging.getLogger(__name__)
 
 async def start_axis() -> None:
     environment = EnvironmentConfig.load()
@@ -34,7 +34,7 @@ async def start_axis() -> None:
 
 
 def main() -> int:
-    configure_logging()
+    Logger.configure()
     logger.info("Starting Axis")
 
     try:

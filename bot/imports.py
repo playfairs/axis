@@ -1,27 +1,31 @@
 import glob
+import logging
 import os
 import pathlib
-import time
-import psutil
 import random
-import discord
-import asyncpg
-import logging
-import jishaku
-import discord_ios
 import ssl
+import time
 import traceback
-
+from collections import defaultdict
+from datetime import (
+    datetime,
+    timedelta,
+)
+from pathlib import Path
 from typing import (
     Dict,
     List,
     Optional,
     Union,
 )
-from datetime import (
-    datetime,
-    timedelta,
-)
+
+import asyncpg
+import discord
+import discord_ios
+import jishaku
+import psutil
+from asyncpg import Pool, create_pool
+from core.client.help import VortexHelp
 from discord import (
     AllowedMentions,
     CustomActivity,
@@ -33,30 +37,23 @@ from discord import (
     Member,
     Message,
 )
-from discord.utils import format_dt
+from discord.ext import commands
 from discord.ext.commands import (
     AutoShardedBot,
-    CommandError,
-    CheckFailure,
     ChannelNotFound,
+    CheckFailure,
+    CommandError,
     CommandNotFound,
     CommandOnCooldown,
     ExtensionFailed,
-    MissingPermissions,
     MinimalHelpCommand,
+    MissingPermissions,
     NotOwner,
     RoleNotFound,
-    UserNotFound,
     ThreadNotFound,
+    UserNotFound,
     when_mentioned_or,
 )
-
-from loguru import logger
-from asyncpg import Pool, create_pool
-from collections import defaultdict
-from psutil import Process
-from typing import Optional
-from pathlib import Path
-from discord.ext import commands
-from core.client.help import VortexHelp
+from discord.utils import format_dt
 from dotenv import load_dotenv
+from psutil import Process

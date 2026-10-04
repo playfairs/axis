@@ -96,15 +96,12 @@ class LastFMActivity:
                     await self.bot.change_presence(activity=activity)
                     self._last_track = track
             except LastFMError as error:
-                logger.warning("Last.fm update failed: {}", error)
+                logger.warning(f"Last.fm update failed: {error}")
             except APITransportError as error:
-                logger.warning("Last.fm request failed: {}", error)
+                logger.warning(f"Last.fm request failed: {error}")
             except ValueError:
                 logger.warning("Last.fm returned invalid JSON.")
             except discord.HTTPException as error:
-                logger.warning(
-                    "Failed to update Discord activity (HTTP {}).",
-                    error.status,
-                )
+                logger.warning(f"Failed to update Discord activity (HTTP {error.status}).")
 
             await asyncio.sleep(self.poll_interval)

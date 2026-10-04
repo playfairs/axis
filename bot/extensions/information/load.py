@@ -56,7 +56,7 @@ async def setup(bot: commands.Bot) -> None:
         for command in module_commands:
             bot.add_command(command)
             registered_commands.append(command.name)
-            logger.info("Loaded command {} from {}", command.name, module.__name__)
+            logger.info(f"Loaded command {command.name} from {module.__name__}")
 
 
 async def teardown(bot: commands.Bot) -> None:

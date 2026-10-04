@@ -1,7 +1,6 @@
 discord.py
 cffi
 jishaku
-loguru
 python-dotenv
 psutil
 discord-ios
