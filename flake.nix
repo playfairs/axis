@@ -30,9 +30,14 @@
           default = pkgs.mkShell {
             packages = [
               nox.packages.${system}.nox
-              pkgs.python3
+              (pkgs.python3.withPackages (pythonPackages: [
+                pythonPackages.cffi
+              ]))
               pkgs.ruff
               pkgs.uv
+              pkgs.clang
+              pkgs.curl
+              pkgs.pkg-config
             ];
           };
         });

@@ -1,4 +1,5 @@
 discord.py
+cffi
 jishaku
 loguru
 python-dotenv
