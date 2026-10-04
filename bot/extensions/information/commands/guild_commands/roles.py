@@ -1,3 +1,23 @@
+# This file is part of Axis.
+#
+# Copyright (c) 2026 playfairs
+#
+# This work is released into the public domain under the Unlicense.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# See the UNLICENSE file for details.
+
+# bot.extensions.information:roles
+# List all roles in this server
+
+
 from bot.base.imports import commands, discord
 
 ROLES_PER_PAGE = 15
@@ -125,7 +145,6 @@ def _chunk_role_entries(entries: list[str]) -> list[str]:
 @commands.command(name="roles")
 @commands.guild_only()
 async def roles(ctx: commands.Context) -> None:
-    """List all roles in this server."""
     guild = ctx.guild
     if guild is None:
         await ctx.send("This command can not be used in DMs")

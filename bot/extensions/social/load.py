@@ -1,31 +1,10 @@
-# This file is part of Axis.
-#
-# Copyright (c) 2026 playfairs
-#
-# This work is released into the public domain under the Unlicense.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-# OTHER DEALINGS IN THE SOFTWARE.
-#
-# See the UNLICENSE file for details.
-
-# bot.extensions.information:load
-# this file loads all the commands recursively,
-# without this, each command would need to be specified
-# as a cog, that kind of system would be cursed.
-
 from importlib import import_module
 from pkgutil import walk_packages
 from types import ModuleType
 
 from bot.base.imports import commands, logger
 
-COMMANDS_PACKAGE = "bot.extensions.information.commands"
+COMMANDS_PACKAGE = "bot.extensions.social.commands"
 registered_commands: list[str] = []
 
 

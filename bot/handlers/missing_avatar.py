@@ -1,3 +1,5 @@
+# bot.handlers.missing_avatar
+
 from bot.base.imports import discord
 
 

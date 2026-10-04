@@ -1,3 +1,19 @@
+# This file is part of Axis.
+#
+# Copyright (c) 2026 playfairs
+#
+# This work is released into the public domain under the Unlicense.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# See the UNLICENSE file for details.
+
 # bot.extensions.information:whois
 # Show basic information about a user.
 
@@ -19,15 +35,16 @@ class WhoisView(discord.ui.LayoutView):
             else user.global_name or user.name
         )
         details = discord.ui.TextDisplay(
-            f"**Display name**: {display_name}\n"
-            f"**User ID**: `{user.id}`\n"
-            f"**Created**: <t:{int(user.created_at.timestamp())}:D> "
+            f"> **Display name**: {display_name}\n"
+            f"> **Username**: {user.name}\n"
+            f"> **User ID**: `{user.id}`\n"
+            f"> **Created**: <t:{int(user.created_at.timestamp())}:D> "
             f"- <t:{int(user.created_at.timestamp())}:R>\n"
-            f"**Type**: {'Bot' if user.bot else 'User'}\n"
-            f"**Mutual servers**: {len(user.mutual_guilds)}"
+            f"> **Mutual servers**: {len(user.mutual_guilds)}\n"
+            f"> **Type**: {'Bot' if user.bot else 'User'}"
         )
         container_items: list[discord.ui.Item] = [
-            discord.ui.TextDisplay(f"## {user.name}"),
+            discord.ui.TextDisplay(f"## @{user.name} ({user.display_name})"),
             discord.ui.Separator(),
             discord.ui.Section(
                 details,

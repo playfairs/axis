@@ -14,17 +14,31 @@
 #
 # See the UNLICENSE file for details.
 
-# bot.extensions.information:serverid
-# Show the ID of the current server
+# bot.extensions.information:servername
+# Shows the server name, or renames the server
+# if a name is specified.
 
 
 from bot.base.imports import commands
 
 
-@commands.command(name="serverid", aliases=("guildid", "sid"))
-async def server_id(ctx: commands.Context) -> None:
+@commands.command(name="servername", aliases=("sname", "guildname", "gname"))
+@commands.has_guild_permissions(manage_guild=True)
+async def server_name(
+    ctx: commands.Context,
+    name: str | None = None,
+) -> None:
     if ctx.guild is None:
         await ctx.send("This command can only be used in a server.")
         return
 
-    await ctx.send(f"This server's ID is: `{ctx.guild.id}`")
+    if name is None:
+        await ctx.send(f"this servers name is: **{ctx.guild.name}**")
+        return
+
+    old_name = ctx.guild.name
+    await ctx.guild.edit(name=name)
+
+    await ctx.send(
+        f"server name changed from **{old_name}** to **{name}**."
+    )
