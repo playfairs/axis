@@ -2,8 +2,10 @@
   description = "Axis development environment";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.nox.url = "github:playfairs/nox";
+  inputs.nox.inputs.nixpkgs.follows = "nixpkgs";
 
-  outputs = { nixpkgs, ... }:
+  outputs = { nixpkgs, nox, ... }:
     let
       systems = [
         "aarch64-darwin"
@@ -27,6 +29,7 @@
         {
           default = pkgs.mkShell {
             packages = [
+              nox.packages.${system}.nox
               pkgs.python3
               pkgs.ruff
               pkgs.uv
