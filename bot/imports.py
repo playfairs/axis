@@ -21,7 +21,6 @@ from typing import (
 
 import asyncpg
 import discord
-import discord_ios
 import jishaku
 import psutil
 from asyncpg import Pool, create_pool
