@@ -26,8 +26,10 @@ You can install or upgrade the dependencies without starting the bot with
 set ``DISCORD_TOKEN`` before running Axis.
 
 In environments such as Docker where a Python file is needed as the process
-entry point, run ``python start.py`` after installing ``requirements.txt``.
-This calls the same startup function used by the Nox task.
+entry point, install ``uv`` and ``python3`` in the image and use
+``python start.py``. Like ``nox task start``, this creates or replaces the
+project ``.venv``, upgrades dependencies from ``requirements.txt``, then
+starts ``bot.main`` inside that environment.
 
 Axis requests all Discord gateway intents. In the Discord Developer Portal,
 enable the privileged ``Server Members Intent``, ``Presence Intent``, and
