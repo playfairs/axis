@@ -25,6 +25,10 @@ You can install or upgrade the dependencies without starting the bot with
 ``nox task install``. Copy ``.env.example`` to the project-root ``.env`` and
 set ``DISCORD_TOKEN`` before running Axis.
 
+In environments such as Docker where a Python file is needed as the process
+entry point, run ``python start.py`` after installing ``requirements.txt``.
+This calls the same startup function used by the Nox task.
+
 Axis requests all Discord gateway intents. In the Discord Developer Portal,
 enable the privileged ``Server Members Intent``, ``Presence Intent``, and
 ``Message Content Intent`` for the bot application as well.
