@@ -31,8 +31,13 @@ from bot.rpc.lastfm import LastFMActivity
 
 class Axis(commands.Bot):
     def __init__(self, config: BotConfig) -> None:
+        def get_prefix(bot: commands.Bot, message: discord.Message) -> list[str]:
+            bot_id = bot.user.id if bot.user is not None else None
+            prefixes = config.prefixes_for(bot_id)
+            return commands.when_mentioned_or(*prefixes)(bot, message)
+
         super().__init__(
-            command_prefix=commands.when_mentioned_or(*config.command_prefixes),
+            command_prefix=get_prefix,
             intents=discord.Intents.all(),
             owner_ids=config.owner_ids,
             help_command=None,
