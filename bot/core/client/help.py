@@ -473,9 +473,9 @@ async def help_command(
             response += f", perhaps you meant `{suggestion}`?"
         else:
             response += "."
-        await ctx.send(response)
+        await ctx.send(response, delete_after=3)
         try:
-            await ctx.message.add_reaction("‼️")
+            await ctx.message.add_reaction("❓")
         except discord.HTTPException as error:
             logger.warning(
                 "Could not react to an unknown help command in channel %s (HTTP %s).",

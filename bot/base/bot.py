@@ -136,7 +136,15 @@ class Axis(commands.Bot):
                 description=f"> {ctx.author.mention}: {ctx.invoked_with} does not exist.",
                 color=discord.Colour.yellow(),
             )
-            await ctx.send(embed=embed)
+            await ctx.send(embed=embed, delete_after=3)
+            try:
+                await ctx.message.add_reaction("❓")
+            except discord.HTTPException as reaction_error:
+                logger.warning(
+                    "Could not react to an unknown command in channel %s (HTTP %s).",
+                    ctx.channel.id,
+                    reaction_error.status,
+                )
             title, color, level = f"? NOT_FOUND [{timestamp}]", "yellow", "info"
         elif isinstance(error, commands.CommandOnCooldown):
             lines.append(f"Error: On cooldown: {error.retry_after:.2f}s")
