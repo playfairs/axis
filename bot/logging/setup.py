@@ -38,6 +38,13 @@ LEVEL_COLORS = {
     logging.ERROR: ANSI_COLORS["red"],
     logging.CRITICAL: "\033[1;41m",
 }
+ENABLED_LEVELS = {
+    logging.DEBUG: False,
+    logging.INFO: True,
+    logging.WARNING: True,
+    logging.ERROR: True,
+    logging.CRITICAL: True,
+}
 
 class ColorFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
@@ -45,21 +52,20 @@ class ColorFormatter(logging.Formatter):
         color = LEVEL_COLORS.get(record.levelno, ANSI_COLORS["white"])
         record.levelname = f"{color}{record.levelname:<5}{RESET}"
         return super().format(record)
- 
+
+
+class EnabledLevelsFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return ENABLED_LEVELS.get(record.levelno, True)
+
+
 class Logger:
     @staticmethod
-    def configure():
+    def configure() -> None:
         logging.addLevelName(logging.WARNING, "WARN")
         logging.addLevelName(logging.CRITICAL, "FATAL")
-        file_handler = logging.FileHandler("logs.log", "a", "utf-8")
-        file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s - %(levelname)-8s - %(name)s - %(message)s",
-                datefmt="%H:%M:%S",
-            )
-        )
-
         console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.addFilter(EnabledLevelsFilter())
         console_handler.setFormatter(
             ColorFormatter(
                 f"{ANSI_COLORS['green']}%(asctime)s{RESET} - "
@@ -71,7 +77,7 @@ class Logger:
 
         logging.basicConfig(
             level=logging.DEBUG,
-            handlers=[file_handler, console_handler],
+            handlers=[console_handler],
         )
 
     def create_box(title: str, content_lines: list[str], color: BoxColor) -> str:
@@ -103,4 +109,4 @@ class Logger:
             )
 
         lines.append(f"{ANSI_COLORS[color]}{bottom_border}{RESET}")
-        return "\n".join(lines)        
+        return "\n".join(lines)
