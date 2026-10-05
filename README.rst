@@ -27,9 +27,10 @@ set ``DISCORD_TOKEN`` before running Axis.
 
 In environments such as Docker where a Python file is needed as the process
 entry point, install ``uv`` and ``python3`` in the image and use
-``python start.py``. Like ``nox task start``, this creates or replaces the
-project ``.venv``, upgrades dependencies from ``requirements.txt``, then
-starts ``bot.main`` inside that environment.
+``python start.py``. The script prefers ``uv`` on ``PATH`` and falls back to
+an executable named ``uv`` in the project root. Like ``nox task start``, it
+creates or replaces the project ``.venv``, upgrades dependencies from
+``requirements.txt``, then starts ``bot.main`` inside that environment.
 
 Axis requests all Discord gateway intents. In the Discord Developer Portal,
 enable the privileged ``Server Members Intent``, ``Presence Intent``, and
