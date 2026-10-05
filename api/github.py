@@ -6,6 +6,7 @@ from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import quote
 
+from api.github_repository import fetch_repository
 from api.native import APITransportError, request
 
 logger = logging.getLogger(__name__)
@@ -179,4 +180,9 @@ async def fetch_profile(username: str) -> dict[str, Any]:
     return profile
 
 
-__all__ = ("APITransportError", "GitHubError", "fetch_profile")
+__all__ = (
+    "APITransportError",
+    "GitHubError",
+    "fetch_profile",
+    "fetch_repository",
+)

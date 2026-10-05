@@ -55,3 +55,11 @@ Shared Discord.py and Loguru imports are available from
 ``bot/base/imports.py``. Application and Discord.py logs are configured
 centrally in ``bot/logging/setup.py``; command usage and failures are logged
 with the invoking user, guild, and channel identifiers.
+
+Policies
+--------
+
+See `TERMS.rst <TERMS.rst>`_ for the terms and conditions and
+`PRIVACY.rst <PRIVACY.rst>`_ for the privacy policy. Operators of deployed
+instances are responsible for reviewing these documents against their
+hosting, configuration, and applicable legal requirements.

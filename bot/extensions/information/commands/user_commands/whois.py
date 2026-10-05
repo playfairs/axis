@@ -18,7 +18,8 @@
 # Show basic information about a user.
 
 from discord import app_commands
-from bot.base.imports import commands, discord
+
+from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, discord
 from bot.handlers.missing_avatar import get_avatar
 
 
@@ -69,10 +70,17 @@ class WhoisView(discord.ui.LayoutView):
                 )
             )
 
-        self.add_item(discord.ui.Container(*container_items))
+        self.add_item(
+            discord.ui.Container(
+                *container_items,
+                accent_color=DEFAULT_CONTAINER_COLOR,
+            )
+        )
 
 
-@commands.hybrid_command(name="whois")
+@commands.hybrid_command(
+    name="whois", description="Shows basic information about a user."
+)
 @app_commands.describe(user="Show basic information about a user.")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)

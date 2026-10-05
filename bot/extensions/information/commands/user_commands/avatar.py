@@ -18,7 +18,8 @@
 # Show's a users avatar, or default avatar if none.
 
 from discord import app_commands
-from bot.base.imports import commands, discord
+
+from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, discord
 from bot.handlers.missing_avatar import get_avatar
 
 
@@ -34,6 +35,7 @@ class AvatarView(discord.ui.LayoutView):
                     description=f"{user.name}'s avatar",
                 )
             ),
+            accent_color=DEFAULT_CONTAINER_COLOR,
         )
         self.add_item(container)
 

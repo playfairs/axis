@@ -18,7 +18,12 @@
 # Show detailed information about the server
 
 
-from bot.base.imports import app_commands, commands, discord
+from bot.base.imports import (
+    DEFAULT_CONTAINER_COLOR,
+    app_commands,
+    commands,
+    discord,
+)
 
 
 def _channel_counts(guild: discord.Guild) -> str:
@@ -36,8 +41,7 @@ def _channel_counts(guild: discord.Guild) -> str:
             isinstance(channel, discord.ForumChannel) for channel in guild.channels
         ),
         "Categories": sum(
-            isinstance(channel, discord.CategoryChannel)
-            for channel in guild.channels
+            isinstance(channel, discord.CategoryChannel) for channel in guild.channels
         ),
     }
     return "\n".join(f"**{name}:** {count}" for name, count in counts.items())
@@ -73,8 +77,7 @@ class ServerInfoView(discord.ui.LayoutView):
         )
         if guild.features:
             features = ", ".join(
-                feature.replace("_", " ").title()
-                for feature in sorted(guild.features)
+                feature.replace("_", " ").title() for feature in sorted(guild.features)
             )
             settings.content += f"\n\n### Features\n{features}"
 
@@ -122,7 +125,9 @@ class ServerInfoView(discord.ui.LayoutView):
                 )
             )
 
-        self.add_item(discord.ui.Container(*items))
+        self.add_item(
+            discord.ui.Container(*items, accent_color=DEFAULT_CONTAINER_COLOR)
+        )
 
 
 @commands.hybrid_command(name="serverinfo", aliases=("guildinfo", "si"))

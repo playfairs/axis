@@ -15,7 +15,12 @@
 # See the UNLICENSE file for details.
 
 
-from bot.base.imports import app_commands, commands, discord
+from bot.base.imports import (
+    DEFAULT_CONTAINER_COLOR,
+    app_commands,
+    commands,
+    discord,
+)
 
 PERMISSION_DISPLAY_LIMIT = 3500
 
@@ -87,9 +92,7 @@ class RoleInfoView(discord.ui.LayoutView):
             for index, chunk in enumerate(permission_chunks, start=1)
         ]
         if not permission_displays:
-            permission_displays.append(
-                discord.ui.TextDisplay("### Permissions\nNone")
-            )
+            permission_displays.append(discord.ui.TextDisplay("### Permissions\nNone"))
 
         items: list[discord.ui.Item] = [
             discord.ui.TextDisplay(f"## {role.name}"),
@@ -121,7 +124,9 @@ class RoleInfoView(discord.ui.LayoutView):
         self.add_item(
             discord.ui.Container(
                 *items,
-                accent_color=role.color if role.color.value else None,
+                accent_color=(
+                    role.color if role.color.value else DEFAULT_CONTAINER_COLOR
+                ),
             )
         )
 

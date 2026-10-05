@@ -15,6 +15,7 @@
 # See the UNLICENSE file for details.
 
 
+import logging
 import os
 from typing import Any
 
@@ -22,6 +23,8 @@ import jishaku
 
 from bot.base.imports import commands, discord, logger
 from bot.config.bot import BotConfig
+from bot.core.client.help import help_command, where_command
+from bot.errors.handlers.roles import handle_role_error
 from bot.logging.setup import Logger
 from bot.rpc.lastfm import LastFMActivity
 
@@ -31,10 +34,12 @@ class Axis(commands.Bot):
         super().__init__(
             command_prefix=commands.when_mentioned_or(*config.command_prefixes),
             intents=discord.Intents.all(),
-            owner_id=config.owner_id,
+            owner_ids=config.owner_ids,
             help_command=None,
         )
         self.config = config
+        self.add_command(help_command)
+        self.add_command(where_command)
         self._lastfm_activity: LastFMActivity | None = None
         self.add_check(self._jishaku_owner_check)
 
@@ -80,24 +85,26 @@ class Axis(commands.Bot):
 
     async def on_command_completion(self, ctx: commands.Context) -> None:
         timestamp = ctx.message.created_at.astimezone().strftime("%H:%M:%S")
-        logger.bind(axis_box=True).info(
-            Logger.create_box(
-                f"✓ SUCCESS [{timestamp}]",
-                [
-                    f"User: {ctx.author} ({ctx.author.id})",
-                    f"Guild: {ctx.guild.id if ctx.guild else 'N/A'}",
-                    f"Channel: {ctx.channel.id}",
-                    f"Command: {ctx.command}",
-                ],
-                "green",
-            )
+        box = Logger.create_box(
+            f"✓ SUCCESS [{timestamp}]",
+            [
+                f"User: {ctx.author} ({ctx.author.id})",
+                f"Guild: {ctx.guild.id if ctx.guild else 'N/A'}",
+                f"Channel: {ctx.channel.id}",
+                f"Command: {ctx.command}",
+            ],
+            "green",
         )
+        logger.info(box)
 
     async def on_command_error(
         self,
         ctx: commands.Context,
         error: commands.CommandError,
     ) -> None:
+        if await handle_role_error(ctx, error):
+            return
+
         command = ctx.command or ctx.invoked_with
         timestamp = ctx.message.created_at.astimezone().strftime("%H:%M:%S")
         lines = [
@@ -151,16 +158,20 @@ class Axis(commands.Bot):
 
         box = Logger.create_box(title, lines, color)
         if isinstance(error, commands.CommandInvokeError):
-            logger.bind(axis_box=True).opt(exception=error.original).log(
-                level.upper(), box
+            logger.log(
+                getattr(logging, level.upper()),
+                box,
+                exc_info=(
+                    type(error.original),
+                    error.original,
+                    error.original.__traceback__,
+                ),
             )
         else:
-            logger.bind(axis_box=True).log(level.upper(), box)
+            logger.log(getattr(logging, level.upper()), box)
 
     async def on_ready(self) -> None:
         logger.info(f"Connected to Discord as {self.user}")
 
-    async def on_error(
-        self, event: str, *args: object, **kwargs: object
-    ) -> None:
+    async def on_error(self, event: str, *args: object, **kwargs: object) -> None:
         logger.exception(f"Unhandled error in Discord event {event}")

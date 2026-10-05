@@ -15,7 +15,7 @@
 # See the UNLICENSE file for details.
 
 
-from bot.base.imports import commands, discord
+from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, discord
 
 BOTS_PER_PAGE = 15
 
@@ -109,6 +109,7 @@ class BotsView(discord.ui.LayoutView):
             discord.ui.Separator(),
             self.controls,
             discord.ui.Separator(),
+            accent_color=DEFAULT_CONTAINER_COLOR,
         )
         self.add_item(self.container)
         self._update_page()

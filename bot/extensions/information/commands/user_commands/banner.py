@@ -18,7 +18,8 @@
 # Show's a users banner if any.
 
 from discord import app_commands
-from bot.base.imports import commands, discord
+
+from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, discord
 
 
 class BannerView(discord.ui.LayoutView):
@@ -33,6 +34,7 @@ class BannerView(discord.ui.LayoutView):
                     description=f"{user.name}'s banner",
                 )
             ),
+            accent_color=DEFAULT_CONTAINER_COLOR,
         )
         self.add_item(container)
 

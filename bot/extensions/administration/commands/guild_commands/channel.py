@@ -1,6 +1,7 @@
 import discord
 
 from bot.base.imports import commands, logger
+from bot.core.client.help import help_command
 
 
 def _parse_channel_id(value: str) -> int | None:
@@ -32,11 +33,7 @@ async def _resolve_channel(
 
 @commands.group(name="channel", invoke_without_command=True)
 async def channel(ctx: commands.Context) -> None:
-    await ctx.send(
-        "Use `,channel create [name] [category_id]`, "
-        "`,channel rename <name>` or `,channel rename <channel> <name>`, "
-        "or `,channel delete [channel]`."
-    )
+    await ctx.invoke(help_command, command_name="channel")
 
 
 @channel.command(name="create", aliases=["new"])

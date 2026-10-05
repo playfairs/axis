@@ -18,7 +18,7 @@
 # List all roles in this server
 
 
-from bot.base.imports import commands, discord
+from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, discord
 
 ROLES_PER_PAGE = 15
 
@@ -119,6 +119,7 @@ class RolesView(discord.ui.LayoutView):
             self.entries,
             discord.ui.Separator(),
             self.controls,
+            accent_color=DEFAULT_CONTAINER_COLOR,
         )
         self.add_item(self.container)
         self._update_page()

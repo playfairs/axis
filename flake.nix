@@ -35,6 +35,7 @@
               ]))
               pkgs.ruff
               pkgs.uv
+              pkgs.fzf
               pkgs.clang
               pkgs.curl
               pkgs.pkg-config
