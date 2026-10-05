@@ -5,7 +5,13 @@ from collections import defaultdict
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, get_args, get_origin
 
-from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, discord, logger
+from bot.base.imports import (
+    DEFAULT_CONTAINER_COLOR,
+    app_commands,
+    commands,
+    discord,
+    logger,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -440,7 +446,10 @@ class HelpView(discord.ui.LayoutView):
             )
 
 
-@commands.command(name="help", aliases=("h",))
+@commands.hybrid_command(name="help", aliases=("h",))
+@app_commands.describe(command_name="The command to show detailed help for.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 async def help_command(
     ctx: commands.Context,
     *,
@@ -476,7 +485,6 @@ async def help_command(
         ),
         allowed_mentions=discord.AllowedMentions.none(),
     )
-
 
 @commands.command(name="where", aliases=("which",))
 async def where_command(
