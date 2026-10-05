@@ -142,7 +142,7 @@ def _parameter_type_name(annotation: object, converter: object) -> str:
         float: "Number",
         bool: "Boolean",
     }
-    if annotation in type_labels:
+    if isinstance(annotation, type) and annotation in type_labels:
         return type_labels[annotation]
     if isinstance(annotation, type):
         return annotation.__name__
@@ -380,7 +380,14 @@ class HelpView(discord.ui.LayoutView):
             page_command = command
             if isinstance(command, commands.Group) and self.page > 0:
                 page_command = subcommands[self.page - 1]
-            content.extend(_command_details(page_command, prefix))
+            try:
+                content.extend(_command_details(page_command, prefix))
+            except Exception:
+                logger.exception(
+                    "Failed to render help page for command %s; showing an ellipsis.",
+                    page_command.qualified_name,
+                )
+                content.append(discord.ui.TextDisplay("…"))
         elif category is not None and category in categories:
             category_commands = categories[category]
             names = _command_names(category_commands)
