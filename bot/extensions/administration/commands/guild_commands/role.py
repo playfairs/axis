@@ -1,9 +1,9 @@
 import asyncio
-import os
 
 import discord
+from rapidfuzz import process
 
-from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, logger
+from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands
 from bot.core.client.help import help_command
 from bot.errors.handlers import roles as role_error_handler
 from bot.extensions.information.commands.guild_commands.role_info import (
@@ -22,61 +22,221 @@ class RoleMessageView(discord.ui.LayoutView):
         )
 
 
+class RoleConfirmationControls(discord.ui.ActionRow):
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger)
+    async def confirm(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        view = self.view
+        if not isinstance(view, DangerousRoleConfirmationView):
+            raise RuntimeError("Role confirmation controls are not attached correctly.")
+        button.disabled = True
+        await view.confirm(interaction)
+
+    @discord.ui.button(label="Deny", style=discord.ButtonStyle.secondary)
+    async def deny(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        view = self.view
+        if not isinstance(view, DangerousRoleConfirmationView):
+            raise RuntimeError("Role confirmation controls are not attached correctly.")
+        button.disabled = True
+        await view.deny(interaction)
+
+
+class DangerousRoleConfirmationView(discord.ui.LayoutView):
+    def __init__(
+        self,
+        ctx: commands.Context,
+        member: discord.Member,
+        target: discord.Role,
+    ) -> None:
+        super().__init__(timeout=63)
+        self.ctx = ctx
+        self.member = member
+        self.target = target
+        self.response_message: discord.Message | None = None
+        self.message = discord.ui.TextDisplay("")
+        self.timer = discord.ui.TextDisplay(
+            "Confirm and Deny buttons will appear in 3 second(s)."
+        )
+        self.controls = RoleConfirmationControls()
+        self.container = discord.ui.Container(
+            self.message,
+            discord.ui.Separator(),
+            self.timer,
+            accent_color=DEFAULT_CONTAINER_COLOR,
+        )
+        self.add_item(self.container)
+        dangerous_permissions = _dangerous_permissions(target)
+        permission_list = ", ".join(dangerous_permissions)
+        self.confirmation_text = (
+            f"**Are you sure this is the role you meant?**\n"
+            f"Fuzzy matching selected {target.mention} for {member.mention}.\n"
+            f"This role has powerful permissions: {permission_list}.\n"
+            "Review the role and permissions carefully before confirming."
+        )
+        self.message.content = self.confirmation_text
+
+    def show_confirmation(self) -> None:
+        self.container.remove_item(self.timer)
+        self.container.add_item(self.controls)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message(
+                "Only the person who ran this command can confirm it.",
+                ephemeral=True,
+            )
+            return False
+        return True
+
+    async def confirm(self, interaction: discord.Interaction) -> None:
+        self._disable_controls()
+        self.message.content = (
+            f"Confirmed. Giving {self.target.mention} to {self.member.mention}."
+        )
+        await interaction.response.edit_message(
+            view=self,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        await _edit_member_role(
+            self.ctx,
+            self.member,
+            self.target,
+            give=True,
+        )
+
+    async def deny(self, interaction: discord.Interaction) -> None:
+        self._disable_controls()
+        self.message.content = "Role assignment cancelled, be more specific next time."
+        await interaction.response.edit_message(
+            view=self,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
+    async def on_timeout(self) -> None:
+        self._disable_controls()
+        self.message.content = "Role assignment confirmation expired."
+        if self.response_message is not None:
+            await self.response_message.edit(
+                view=self,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+
+    def _disable_controls(self) -> None:
+        for item in self.controls.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+
+
 class FuzzyRoleConverter(commands.RoleConverter):
-    async def convert(self, ctx: commands.Context, argument: str) -> discord.Role:
+    async def resolve(
+        self,
+        ctx: commands.Context,
+        argument: str,
+    ) -> tuple[discord.Role, bool]:
         try:
-            return await super().convert(ctx, argument)
+            return await super().convert(ctx, argument), False
         except commands.RoleNotFound:
             if ctx.guild is None:
                 raise
 
-        roles_by_name = {
-            " ".join(role.name.casefold().split()): role for role in ctx.guild.roles
-        }
-        if not roles_by_name:
-            raise commands.RoleNotFound(argument)
-
-        try:
-            process = await asyncio.create_subprocess_exec(
-                "fzf",
-                "--filter",
-                argument,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env={**os.environ, "FZF_DEFAULT_OPTS": ""},
-            )
-        except FileNotFoundError as error:
+        if len(argument.strip()) == 1 and argument.strip().isalpha():
             raise role_error_handler.RoleCommandError(
-                "Fuzzy role matching requires the `fzf` executable to be installed."
-            ) from error
+                "Please be more specific. Fuzzy role matching with a single letter "
+                "isn't effective."
+            )
 
-        stdout, stderr = await process.communicate(
-            "\n".join(role.name for role in ctx.guild.roles).encode()
+        role_names = [role.name for role in ctx.guild.roles]
+        closest_matches = process.extract(argument, role_names, limit=1)
+        if closest_matches:
+            _, score, index = closest_matches[0]
+            if score > 60:
+                return ctx.guild.roles[index], True
+
+        raise commands.RoleNotFound(argument)
+
+    async def convert(self, ctx: commands.Context, argument: str) -> discord.Role:
+        role, _ = await self.resolve(ctx, argument)
+        return role
+
+
+DANGEROUS_PERMISSION_FLAGS = frozenset(
+    {
+        "administrator",
+        "ban_members",
+        "deafen_members",
+        "kick_members",
+        "manage_messages",
+        "manage_nicknames",
+        "moderate_members",
+        "move_members",
+        "mute_members",
+        "mention_everyone",
+        "priority_speaker",
+        "view_audit_log",
+    }
+)
+
+
+def _dangerous_permissions(role: discord.Role) -> list[str]:
+    permissions = role.permissions
+    flags = discord.Permissions.VALID_FLAGS
+    labels = {"manage_guild": "Manage Server"}
+    return [
+        labels.get(flag, flag.replace("_", " ").title())
+        for flag in flags
+        if (flag.startswith("manage_") or flag in DANGEROUS_PERMISSION_FLAGS)
+        and getattr(permissions, flag)
+    ]
+
+
+async def _resolve_role_input(
+    ctx: commands.Context,
+    argument: str,
+) -> tuple[discord.Role, bool]:
+    return await FuzzyRoleConverter().resolve(ctx, argument)
+
+
+async def _confirm_dangerous_fuzzy_give(
+    ctx: commands.Context,
+    member: discord.Member,
+    target: discord.Role,
+    *,
+    fuzzy_match: bool,
+) -> bool:
+    if not fuzzy_match or member.guild_permissions.administrator:
+        return False
+    dangerous_permissions = _dangerous_permissions(target)
+    if not dangerous_permissions:
+        return False
+    view = DangerousRoleConfirmationView(ctx, member, target)
+    view.response_message = await ctx.send(
+        view=view,
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
+    for countdown in (2, 1):
+        await asyncio.sleep(1)
+        view.timer.content = (
+            f"Confirm and Deny buttons will appear in {countdown} "
+            "second(s)."
         )
-        if process.returncode == 2:
-            detail = stderr.decode(errors="replace").strip()
-            logger.error("fzf failed while matching role %r: %s", argument, detail)
-            raise role_error_handler.RoleCommandError(
-                "Fuzzy role matching failed. Please use the exact role name or "
-                "mention the role."
-            )
-        if process.returncode not in (0, 1):
-            detail = stderr.decode(errors="replace").strip()
-            logger.error(
-                "fzf exited with status %s while matching role %r: %s",
-                process.returncode,
-                argument,
-                detail,
-            )
-            raise role_error_handler.RoleCommandError(
-                "Fuzzy role matching failed. Please try the role name again."
-            )
-
-        match = stdout.decode().splitlines()
-        if not match:
-            raise commands.RoleNotFound(argument)
-        return roles_by_name[" ".join(match[0].casefold().split())]
+        await view.response_message.edit(
+            view=view,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+    await asyncio.sleep(1)
+    view.show_confirmation()
+    await view.response_message.edit(
+        view=view,
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
+    return True
 
 
 def _managed_or_default(role: discord.Role) -> bool:
@@ -141,17 +301,28 @@ async def _handle_role_error(
 async def role(
     ctx: commands.Context,
     member: discord.Member | None = None,
-    target: discord.Role | None = commands.parameter(  # noqa: B008
-        converter=FuzzyRoleConverter,
-        default=None,
-    ),
+    *,
+    role_input: str | None = None,
 ) -> None:
-    if member is not None and target is not None:
+    if member is not None and role_input is not None:
+        try:
+            target, fuzzy_match = await _resolve_role_input(ctx, role_input)
+        except role_error_handler.RoleCommandError as error:
+            await _send_error(ctx, str(error))
+            return
+        give = target not in member.roles
+        if give and await _confirm_dangerous_fuzzy_give(
+            ctx,
+            member,
+            target,
+            fuzzy_match=fuzzy_match,
+        ):
+            return
         await _edit_member_role(
             ctx,
             member,
             target,
-            give=target not in member.roles,
+            give=give,
         )
         return
     await ctx.invoke(help_command, command_name="role")
@@ -303,10 +474,21 @@ async def _edit_member_role(
 async def role_give(
     ctx: commands.Context,
     member: discord.Member,
-    target: discord.Role = commands.parameter(  # noqa: B008
-        converter=FuzzyRoleConverter
-    ),
+    *,
+    role_input: str,
 ) -> None:
+    try:
+        target, fuzzy_match = await _resolve_role_input(ctx, role_input)
+    except role_error_handler.RoleCommandError as error:
+        await _send_error(ctx, str(error))
+        return
+    if await _confirm_dangerous_fuzzy_give(
+        ctx,
+        member,
+        target,
+        fuzzy_match=fuzzy_match,
+    ):
+        return
     await _edit_member_role(ctx, member, target, give=True)
 
 

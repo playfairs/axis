@@ -3,3 +3,4 @@ cffi
 jishaku
 python-dotenv
 psutil
+rapidfuzz

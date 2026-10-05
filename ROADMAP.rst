@@ -135,8 +135,10 @@ Roles from both the author and the bot. The author must also have
 Administrator to change a role assignment for a role that grants
 Administrator. Discord's role hierarchy applies; a user cannot give themself
 a role equal to or above their highest role. For role arguments, exact names,
-mentions, and IDs are checked first; if an exact name is not found, ``fzf`` is
-used to select the closest matching role name.
+mentions, and IDs are checked first; if an exact name is not found,
+RapidFuzz selects the closest matching role name when its score is above 60.
+Giving a fuzzy-matched role with powerful permissions requires confirmation
+from the command invoker.
 
 ``role`` (alias: ``r``)
   Without arguments, displays the role command usage.
