@@ -35,6 +35,8 @@ Dates are commit dates as shown by Git. Uncommitted work is not listed.
 2026-10-04: Command, API, and logging additions
 ------------------------------------------------
 
+* ``95b5e76`` - Kept help pagination usable when a command's help details
+  cannot be rendered.
 * ``e6b5d83`` - Commit subject: ``ok``.
 * ``aa85509`` - Added the channel administration command group, server-name
   command, GitHub profile command, and Nox development tooling; expanded
