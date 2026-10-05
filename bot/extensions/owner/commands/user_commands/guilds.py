@@ -1,6 +1,5 @@
 from bot.base.imports import (
     DEFAULT_CONTAINER_COLOR,
-    app_commands,
     commands,
     discord,
 )
@@ -233,30 +232,15 @@ class GuildBrowserView(discord.ui.LayoutView):
         return False
 
 
-async def _is_owner(interaction: discord.Interaction) -> bool:
-    return await interaction.client.is_owner(interaction.user)
-
-
-@commands.hybrid_command(
+@commands.command(
     name="guilds",
     aliases=("servers",),
     description="Browse the servers this bot is in.",
 )
-@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-@app_commands.allowed_installs(guilds=True, users=True)
-@app_commands.check(_is_owner)
 @commands.is_owner()
 async def guilds(ctx: commands.Context) -> None:
     """List the bot's servers and browse their details."""
     view = GuildBrowserView(ctx.bot, owner_id=ctx.author.id)
-    if ctx.interaction is not None:
-        await ctx.send(
-            view=view,
-            ephemeral=True,
-            allowed_mentions=discord.AllowedMentions.none(),
-        )
-        return
-
     await ctx.send(
         view=view,
         allowed_mentions=discord.AllowedMentions.none(),
