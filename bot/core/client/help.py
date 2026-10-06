@@ -26,12 +26,42 @@ def _category_name(command: commands.Command) -> str:
     return "Core"
 
 
-def _root_commands(bot: commands.Bot) -> dict[str, list[commands.Command]]:
+def _is_owner_command(command: commands.Command) -> bool:
+    return command.callback.__module__.startswith("bot.extensions.owner.")
+
+
+def _extension_category(
+    bot: commands.Bot,
+    extension_name: str,
+) -> str | None:
+    if any(character.isspace() for character in extension_name):
+        return None
+
+    prefix = "bot.extensions."
+    matches = {
+        extension[len(prefix) :].partition(".")[0]
+        for extension in bot.extensions
+        if extension.startswith(prefix)
+        and extension[len(prefix) :].partition(".")[0].casefold()
+        == extension_name.casefold()
+    }
+    if len(matches) != 1:
+        return None
+    return next(iter(matches)).replace("_", " ").title()
+
+
+def _root_commands(
+    bot: commands.Bot,
+    *,
+    include_owner_commands: bool,
+) -> dict[str, list[commands.Command]]:
     categories: dict[str, list[commands.Command]] = defaultdict(list)
     for command in bot.commands:
         if command.parent is not None or command.hidden:
             continue
         if command.cog_name == "Jishaku":
+            continue
+        if not include_owner_commands and _is_owner_command(command):
             continue
         categories[_category_name(command)].append(command)
 
@@ -195,10 +225,17 @@ def _source_link(module: str) -> str:
     return f"[`{module}`](<https://github.com/playfairs/axis/blob/master/{path}>)"
 
 
-def _command_suggestion(bot: commands.Bot, query: str) -> str | None:
+def _command_suggestion(
+    bot: commands.Bot,
+    query: str,
+    *,
+    include_owner_commands: bool,
+) -> str | None:
     candidates: set[str] = set()
     for command in bot.walk_commands():
         if command.hidden or command.cog_name == "Jishaku":
+            continue
+        if not include_owner_commands and _is_owner_command(command):
             continue
         candidates.add(command.qualified_name)
         candidates.update(
@@ -297,6 +334,7 @@ class _CategorySelect(discord.ui.Select["HelpView"]):
         view = HelpView(
             self.view.bot,
             category=None if selected == "__start__" else selected,
+            is_bot_owner=self.view.is_bot_owner,
         )
         await interaction.response.edit_message(view=view)
 
@@ -324,6 +362,7 @@ class _GroupPageButton(discord.ui.Button["HelpView"]):
             command=view.command,
             page=page,
             prefix=view.prefix,
+            is_bot_owner=view.is_bot_owner,
         )
         await interaction.response.edit_message(
             view=updated_view,
@@ -350,11 +389,13 @@ class HelpView(discord.ui.LayoutView):
         command_query: str | None = None,
         page: int = 0,
         prefix: str = ",",
+        is_bot_owner: bool = False,
     ) -> None:
         super().__init__(timeout=900)
         self.bot = bot
         self.command = command
         self.prefix = prefix
+        self.is_bot_owner = is_bot_owner
         subcommands = (
             sorted(
                 (child for child in command.commands if not child.hidden),
@@ -365,9 +406,21 @@ class HelpView(discord.ui.LayoutView):
         )
         self.total_pages = len(subcommands) + 1 if subcommands else 1
         self.page = max(0, min(page, self.total_pages - 1))
-        categories = _root_commands(bot)
+        categories = _root_commands(
+            bot,
+            include_owner_commands=is_bot_owner,
+        )
+        category_commands = categories.get(category) if category is not None else None
+        if category == "Owner" and not is_bot_owner:
+            category_commands = _root_commands(
+                bot,
+                include_owner_commands=True,
+            ).get(category)
+        category_options = list(categories)
+        if category == "Owner" and not is_bot_owner:
+            category_options.append(category)
         content: list[discord.ui.Item] = []
-        selected_category = category
+        selected_category = category if category in category_options else None
 
         if command_query is not None and command is None:
             content.append(
@@ -388,8 +441,7 @@ class HelpView(discord.ui.LayoutView):
                     page_command.qualified_name,
                 )
                 content.append(discord.ui.TextDisplay("…"))
-        elif category is not None and category in categories:
-            category_commands = categories[category]
+        elif category_commands is not None:
             names = _command_names(category_commands)
             content.append(discord.ui.TextDisplay(f"```{', '.join(names)}```"))
             count = len(category_commands)
@@ -401,10 +453,20 @@ class HelpView(discord.ui.LayoutView):
                 )
             )
         else:
+            command_count = sum(
+                1
+                for loaded_command in bot.walk_commands()
+                if (
+                    not loaded_command.hidden
+                    and loaded_command.cog_name != "Jishaku"
+                    and (is_bot_owner or not _is_owner_command(loaded_command))
+                )
+            )
             content.append(
                 discord.ui.TextDisplay(
                     "## Axis\n"
                     "Browse the commands currently loaded by **Axis** below.\n"
+                    f"**Total loaded commands:** {command_count}\n\n"
                     f"> Use `{prefix}h <command>` to see a command's usage, arguments, "
                     "aliases, and permissions.\n"
                     "> `<argument>` is required; `[argument]` is optional.\n\n"
@@ -426,12 +488,12 @@ class HelpView(discord.ui.LayoutView):
                 ),
             )
 
-        if command is None and categories:
+        if command is None and category_options:
             content.extend(
                 (
                     discord.ui.Separator(),
                     discord.ui.ActionRow(
-                        _CategorySelect(list(categories), selected_category)
+                        _CategorySelect(category_options, selected_category)
                     ),
                 )
             )
@@ -463,11 +525,28 @@ async def help_command(
     command_name: str | None = None,
 ) -> None:
     """Browse loaded Axis commands or show detailed help for one command."""
+    is_bot_owner = (
+        ctx.bot.owner_ids is not None and ctx.author.id in ctx.bot.owner_ids
+    )
     command = (
         _resolve_command(ctx.bot, command_name) if command_name is not None else None
     )
-    if command_name is not None and command is None:
-        suggestion = _command_suggestion(ctx.bot, command_name)
+    if command is not None and not is_bot_owner and _is_owner_command(command):
+        command = None
+    extension_category = (
+        _extension_category(
+            ctx.bot,
+            command_name,
+        )
+        if command_name is not None and command is None
+        else None
+    )
+    if command_name is not None and command is None and extension_category is None:
+        suggestion = _command_suggestion(
+            ctx.bot,
+            command_name,
+            include_owner_commands=is_bot_owner,
+        )
         response = f"Command `{command_name}` does not exist"
         if suggestion is not None:
             response += f", perhaps you meant `{suggestion}`?"
@@ -486,9 +565,11 @@ async def help_command(
     await ctx.send(
         view=HelpView(
             ctx.bot,
+            category=extension_category,
             command=command,
-            command_query=command_name,
+            command_query=command_name if extension_category is None else None,
             prefix=ctx.clean_prefix,
+            is_bot_owner=is_bot_owner,
         ),
         allowed_mentions=discord.AllowedMentions.none(),
     )
