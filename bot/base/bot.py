@@ -33,6 +33,8 @@ from bot.base.imports import (
 from bot.config import DISCORD
 from bot.config.bot import BotConfig
 from bot.core.client.help import help_command, where_command
+from bot.core.commands.usage import usage_command
+from bot.events.listeners.usage import on_command_completion as track_command_usage
 from bot.errors.handlers.roles import handle_role_error
 from bot.logging.setup import Logger
 from bot.rpc.lastfm import LastFMActivity
@@ -56,6 +58,8 @@ class Axis(commands.Bot):
         self.database_pool: asyncpg.Pool | None = None
         self.add_command(help_command)
         self.add_command(where_command)
+        self.add_command(usage_command)
+        self.add_listener(track_command_usage, "on_command_completion")
         self._lastfm_activity: LastFMActivity | None = None
         self.add_check(self._jishaku_owner_check)
 
