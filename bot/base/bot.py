@@ -19,9 +19,18 @@ import logging
 import os
 from typing import Any
 
+import asyncpg
 import jishaku
 
-from bot.base.imports import commands, discord, logger
+from bot.base.database import initialize_database
+from bot.base.imports import (
+    DEFAULT_CONTAINER_COLOR,
+    DEFAULT_CONTAINER_COLOR_DEV,
+    commands,
+    discord,
+    logger,
+)
+from bot.config import DISCORD
 from bot.config.bot import BotConfig
 from bot.core.client.help import help_command, where_command
 from bot.errors.handlers.roles import handle_role_error
@@ -30,7 +39,7 @@ from bot.rpc.lastfm import LastFMActivity
 
 
 class Axis(commands.Bot):
-    def __init__(self, config: BotConfig) -> None:
+    def __init__(self, config: BotConfig, database_url: str) -> None:
         def get_prefix(bot: commands.Bot, message: discord.Message) -> list[str]:
             bot_id = bot.user.id if bot.user is not None else None
             prefixes = config.prefixes_for(bot_id)
@@ -43,12 +52,18 @@ class Axis(commands.Bot):
             help_command=None,
         )
         self.config = config
+        self.database_url = database_url
+        self.database_pool: asyncpg.Pool | None = None
         self.add_command(help_command)
         self.add_command(where_command)
         self._lastfm_activity: LastFMActivity | None = None
         self.add_check(self._jishaku_owner_check)
 
     async def setup_hook(self) -> None:
+        logger.info("Initializing database schema")
+        self.database_pool = await initialize_database(self.database_url)
+        logger.info("Database schema initialized")
+
         jishaku.Flags.HIDE = True
         jishaku.Flags.ALWAYS_DM_TRACEBACK = True
         logger.info("Loading Jishaku")
@@ -76,7 +91,18 @@ class Axis(commands.Bot):
     async def close(self) -> None:
         if self._lastfm_activity is not None:
             await self._lastfm_activity.close()
+        if self.database_pool is not None:
+            await self.database_pool.close()
+            self.database_pool = None
         await super().close()
+
+    async def on_message(self, message: discord.Message) -> None:
+        from bot.extensions.utils.commands.user_commands.afk import (
+            on_message as handle_afk_message,
+        )
+
+        await handle_afk_message(message, bot=self)
+        await self.process_commands(message)
 
     def dispatch(self, event: str, /, *args: Any, **kwargs: Any) -> None:
         if self.is_closed():
@@ -184,6 +210,13 @@ class Axis(commands.Bot):
             logger.log(getattr(logging, level.upper()), box)
 
     async def on_ready(self) -> None:
+        if self.user is not None:
+            color = (
+                DEFAULT_CONTAINER_COLOR_DEV
+                if self.user.id == DISCORD.DEV_BOT_ID
+                else discord.Color(0xC5AA72)
+            )
+            DEFAULT_CONTAINER_COLOR.value = color.value
         logger.info(f"Connected to Discord as {self.user}")
 
     async def on_error(self, event: str, *args: object, **kwargs: object) -> None:

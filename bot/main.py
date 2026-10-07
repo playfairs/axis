@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 async def start_axis() -> None:
     environment = EnvironmentConfig.load()
-    bot = Axis(BotConfig())
+    bot = Axis(BotConfig(), environment.database_url)
 
     async with bot:
         await bot.start(environment.discord_token)

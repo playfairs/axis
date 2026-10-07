@@ -5,6 +5,9 @@ libcurl4-openssl-dev
 pkg-config
 python3
 python3-venv
+git
+postgresql
+clang
 
 # Required executable to provide separately; not available as a Debian
 # package on every Debian-based distribution.

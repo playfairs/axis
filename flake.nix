@@ -38,7 +38,13 @@
               pkgs.clang
               pkgs.curl
               pkgs.pkg-config
+              pkgs.inkscape
+              pkgs.postgresql
             ];
+
+            shellHook = ''
+              ./scripts/database.sh start
+            '';
           };
         });
     };

@@ -14,10 +14,11 @@
 #
 # See the UNLICENSE file for details.
 
-# bot.extensions.information:load
-# this file loads all the commands recursively,
-# without this, each command would need to be specified
-# as a cog, that kind of system would be cursed.
+# Extension Load Manager
+# This file loads all commands recursively from
+# the path listed in COMMANDS_PACKAGE, the loader
+# is reusable, so long as the COMMANDS_PACKAGE path
+# is changed.
 
 from importlib import import_module
 from pkgutil import walk_packages

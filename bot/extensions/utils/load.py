@@ -26,7 +26,7 @@ from types import ModuleType
 
 from bot.base.imports import commands, logger
 
-COMMANDS_PACKAGE = "bot.extensions.owner.commands"
+COMMANDS_PACKAGE = "bot.extensions.utils.commands"
 registered_commands: list[str] = []
 
 
@@ -51,7 +51,6 @@ async def setup(bot: commands.Bot) -> None:
                 for command in vars(module).values()
                 if isinstance(command, commands.Command)
                 and command.callback.__module__ == module.__name__
-                and command.parent is None
             ),
             key=lambda command: command.name,
         )

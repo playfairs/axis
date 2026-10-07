@@ -1,4 +1,5 @@
 discord.py
+asyncpg
 cffi
 jishaku
 python-dotenv

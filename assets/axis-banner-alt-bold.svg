@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="424" viewBox="0 0 1200 424" fill="none">
+    <defs>
+        <linearGradient id="base" x1="0" y1="212" x2="1200" y2="212" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#110d10"/>
+            <stop offset=".56" stop-color="#21151b"/>
+            <stop offset="1" stop-color="#181014"/>
+        </linearGradient>
+        <radialGradient id="warm-glow" cx="0" cy="0" r="1" gradientTransform="matrix(-497 330 -351 -528 1000 51)" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#f083cb" stop-opacity=".22"/>
+            <stop offset="1" stop-color="#f083cb" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="low-glow" cx="0" cy="0" r="1" gradientTransform="matrix(464 -245 255 482 157 475)" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#5d334a" stop-opacity=".2"/>
+            <stop offset="1" stop-color="#5d334a" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="wordmark" x1="900" y1="285" x2="1150" y2="365" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#f7c4df"/>
+            <stop offset=".64" stop-color="#f083cb"/>
+            <stop offset="1" stop-color="#ae6a98"/>
+        </linearGradient>
+    </defs>
+    <path fill="url(#base)" d="M0 0h1200v424H0z"/>
+    <path fill="url(#warm-glow)" d="M0 0h1200v424H0z"/>
+    <path fill="url(#low-glow)" d="M0 0h1200v424H0z"/>
+    <path stroke="#cb828c" stroke-opacity=".3" d="M.5.5h1199v423H.5z"/>
+    <text x="1144" y="374" fill="url(#wordmark)" font-family="Satoshi, Arial, sans-serif" font-size="112" font-weight="700" letter-spacing="-10" text-anchor="end">axis.</text>
+</svg>

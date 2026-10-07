@@ -1,7 +1,11 @@
+from typing import ClassVar
+
+
 class DISCORD:
     PREFIX = ","
     PREFIXES = (PREFIX, "!", ";")
-    PREFIX_OVERRIDES = {1556469179274625124: ("-",)}
+    DEV_BOT_ID = 1556469179274625124
+    PREFIX_OVERRIDES: ClassVar[dict[int, tuple[str, ...]]] = {DEV_BOT_ID: ("-",)}
     OWNER_IDS = frozenset({1426711359059394662, 816725924959354890})
 
 
@@ -11,5 +15,6 @@ class COGS:
         "bot.extensions.social",
         "bot.extensions.administration",
         "bot.extensions.owner",
+        "bot.extensions.utils",
     )
     SKIP = frozenset()

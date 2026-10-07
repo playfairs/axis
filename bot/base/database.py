@@ -14,21 +14,20 @@
 #
 # See the UNLICENSE file for details.
 
-import logging
+from pathlib import Path
 
-import discord
-from discord import app_commands
-from discord.ext import commands
+import asyncpg
 
-logger = logging.getLogger(__name__)
-DEFAULT_CONTAINER_COLOR = discord.Color(0xC5AA72)
-DEFAULT_CONTAINER_COLOR_DEV = discord.Color(0x422A3D)
+SCHEMA_PATH = Path(__file__).parent / "schema" / "schema.sql"
 
-__all__ = (
-    "DEFAULT_CONTAINER_COLOR",
-    "DEFAULT_CONTAINER_COLOR_DEV",
-    "app_commands",
-    "commands",
-    "discord",
-    "logger",
-)
+
+async def initialize_database(database_url: str) -> asyncpg.Pool:
+    schema = SCHEMA_PATH.read_text(encoding="utf-8")
+    pool = await asyncpg.create_pool(database_url, min_size=1, max_size=5)
+    try:
+        async with pool.acquire() as connection:
+            await connection.execute(schema)
+    except BaseException:
+        await pool.close()
+        raise
+    return pool

@@ -1,3 +1,25 @@
+# This file is part of Axis.
+#
+# Copyright (c) 2026 playfairs
+#
+# This work is released into the public domain under the Unlicense.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# See the UNLICENSE file for details.
+
+# Extension Load Manager
+# This file loads all commands recursively from
+# the path listed in COMMANDS_PACKAGE, the loader
+# is reusable, so long as the COMMANDS_PACKAGE path
+# is changed.
+
 from importlib import import_module
 from pkgutil import walk_packages
 from types import ModuleType
