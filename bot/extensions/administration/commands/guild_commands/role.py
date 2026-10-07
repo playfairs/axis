@@ -3,7 +3,7 @@ import asyncio
 import discord
 from rapidfuzz import process
 
-from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands
+from bot.base.imports import DEFAULT_CONTAINER_COLOR, app_commands, commands
 from bot.core.client.help import help_command
 from bot.errors.handlers import roles as role_error_handler
 from bot.extensions.information.commands.guild_commands.role_info import (
@@ -30,7 +30,10 @@ class RoleConfirmationControls(discord.ui.ActionRow):
         button: discord.ui.Button,
     ) -> None:
         view = self.view
-        if not isinstance(view, DangerousRoleConfirmationView):
+        if not isinstance(
+            view,
+            (DangerousRoleConfirmationView, RoleDeleteConfirmationView),
+        ):
             raise RuntimeError("Role confirmation controls are not attached correctly.")
         button.disabled = True
         await view.confirm(interaction)
@@ -42,7 +45,10 @@ class RoleConfirmationControls(discord.ui.ActionRow):
         button: discord.ui.Button,
     ) -> None:
         view = self.view
-        if not isinstance(view, DangerousRoleConfirmationView):
+        if not isinstance(
+            view,
+            (DangerousRoleConfirmationView, RoleDeleteConfirmationView),
+        ):
             raise RuntimeError("Role confirmation controls are not attached correctly.")
         button.disabled = True
         await view.deny(interaction)
@@ -122,6 +128,74 @@ class DangerousRoleConfirmationView(discord.ui.LayoutView):
     async def on_timeout(self) -> None:
         self._disable_controls()
         self.message.content = "Role assignment confirmation expired."
+        if self.response_message is not None:
+            await self.response_message.edit(
+                view=self,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+
+    def _disable_controls(self) -> None:
+        for item in self.controls.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+
+
+class RoleDeleteConfirmationView(discord.ui.LayoutView):
+    def __init__(
+        self,
+        ctx: commands.Context,
+        target: discord.Role,
+    ) -> None:
+        super().__init__(timeout=63)
+        self.ctx = ctx
+        self.target = target
+        self.response_message: discord.Message | None = None
+        self.message = discord.ui.TextDisplay(
+            f"> Are you sure you want to delete {target.mention}? "
+            f"{len(target.members)} member(s) currently have that role."
+        )
+        self.controls = RoleConfirmationControls()
+        self.add_item(
+            discord.ui.Container(
+                self.message,
+                discord.ui.Separator(),
+                self.controls,
+                accent_color=DEFAULT_CONTAINER_COLOR,
+            )
+        )
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message(
+                "Only the person who ran this command can confirm it.",
+                ephemeral=True,
+            )
+            return False
+        return True
+
+    async def confirm(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        await self.target.delete(reason=f"Deleted by {self.ctx.author}.")
+        self.message.content = f"Deleted **{self.target.name}**."
+        self._disable_controls()
+        await interaction.edit_original_response(
+            view=self,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        self.stop()
+
+    async def deny(self, interaction: discord.Interaction) -> None:
+        self.message.content = f"Deletion of **{self.target.name}** cancelled."
+        self._disable_controls()
+        await interaction.response.edit_message(
+            view=self,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        self.stop()
+
+    async def on_timeout(self) -> None:
+        self.message.content = f"Deletion of **{self.target.name}** expired."
+        self._disable_controls()
         if self.response_message is not None:
             await self.response_message.edit(
                 view=self,
@@ -406,12 +480,14 @@ async def _assign_role_to_matching_members(
     )
 
 
-@commands.group(
+@commands.hybrid_group(
     name="role",
     aliases=["r"],
     invoke_without_command=True,
     description="Manage server roles.",
 )
+@app_commands.guild_only()
+@commands.guild_only()
 async def role(
     ctx: commands.Context,
     member: discord.Member | None = None,
@@ -447,20 +523,27 @@ async def role(
     aliases=["c", "new"],
     description="Create a role with optional permissions and color.",
 )
+@app_commands.describe(
+    name="The new role's name.",
+    perms="Optional non-negative Discord permission bitfield.",
+    color="Optional hex color or named Discord color.",
+)
+@app_commands.guild_only()
 @commands.guild_only()
 @commands.has_guild_permissions(manage_roles=True)
 @commands.bot_has_guild_permissions(manage_roles=True)
 async def role_create(
     ctx: commands.Context,
-    *,
     name: str = "new-role",
+    perms: str | None = None,
+    color: str | None = None,
 ) -> None:
     if ctx.guild is None:
         await _send_message(ctx, "This command can only be used in a server.")
         return
     name = name.strip()
     permissions_value = 0
-    color: discord.Colour | None = None
+    parsed_color: discord.Colour | None = None
     options: dict[str, str] = {}
     while True:
         name_parts = name.rsplit(maxsplit=1)
@@ -476,6 +559,23 @@ async def role_create(
         options[option_name] = option_value
         name = name_parts[0]
 
+    for expected_option, raw_value in (("perms", perms), ("color", color)):
+        if raw_value is None:
+            continue
+        prefix, separator, value = raw_value.partition("=")
+        option_name = (
+            prefix.casefold()
+            if separator and prefix.casefold() in {"perms", "color"}
+            else expected_option
+        )
+        option_value = (
+            value if separator and option_name == prefix.casefold() else raw_value
+        )
+        if option_name in options:
+            await _send_message(ctx, f"Specify `{option_name}=` only once.")
+            return
+        options[option_name] = option_value
+
     if "perms" in options:
         value = options["perms"]
         if not value.isdecimal():
@@ -489,7 +589,7 @@ async def role_create(
             return
     if "color" in options:
         try:
-            color = _parse_role_color(options["color"])
+            parsed_color = _parse_role_color(options["color"])
         except (TypeError, ValueError):
             await _send_message(
                 ctx,
@@ -513,13 +613,14 @@ async def role_create(
     created = await ctx.guild.create_role(
         name=name,
         permissions=permissions,
-        color=color,
+        color=parsed_color,
         reason=f"Created by {ctx.author}.",
     )
     await _send_message(ctx, f"Created {created.mention}.")
 
 
 @role.command(name="delete", aliases=["rm"], description="Delete a server role.")
+@app_commands.guild_only()
 @commands.guild_only()
 @commands.has_guild_permissions(manage_roles=True)
 @commands.bot_has_guild_permissions(manage_roles=True)
@@ -541,6 +642,14 @@ async def role_delete(
         )
         return
     if not await _check_actor_role_hierarchy(ctx, target):
+        return
+
+    if target.members:
+        view = RoleDeleteConfirmationView(ctx, target)
+        view.response_message = await ctx.send(
+            view=view,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
         return
 
     role_name = target.name
@@ -615,6 +724,7 @@ async def _edit_member_role(
     aliases=("add", "grant"),
     description="Give a role to a member.",
 )
+@app_commands.guild_only()
 @commands.guild_only()
 @commands.has_guild_permissions(manage_roles=True)
 @commands.bot_has_guild_permissions(manage_roles=True)
@@ -644,6 +754,7 @@ async def role_give(
     aliases=("revoke",),
     description="Remove a role from a member.",
 )
+@app_commands.guild_only()
 @commands.guild_only()
 @commands.has_guild_permissions(manage_roles=True)
 @commands.bot_has_guild_permissions(manage_roles=True)
@@ -662,6 +773,7 @@ async def role_remove(
     aliases=["name"],
     description="Rename a server role.",
 )
+@app_commands.guild_only()
 @commands.guild_only()
 @commands.has_guild_permissions(manage_roles=True)
 @commands.bot_has_guild_permissions(manage_roles=True)
@@ -704,6 +816,7 @@ async def role_rename(
     aliases=("colour",),
     description="Change a role's color.",
 )
+@app_commands.guild_only()
 @commands.guild_only()
 @commands.has_guild_permissions(manage_roles=True)
 @commands.bot_has_guild_permissions(manage_roles=True)
@@ -749,6 +862,7 @@ async def role_color(
     name="hoist",
     description="Toggle whether a role is displayed separately in the member list.",
 )
+@app_commands.guild_only()
 @commands.guild_only()
 @commands.has_guild_permissions(manage_roles=True)
 @commands.bot_has_guild_permissions(manage_roles=True)
@@ -776,6 +890,7 @@ async def role_hoist(
     name="human",
     description="Add this role to every non-bot member who does not already have it.",
 )
+@app_commands.guild_only()
 @commands.guild_only()
 @commands.has_guild_permissions(manage_roles=True)
 @commands.bot_has_guild_permissions(manage_roles=True)
@@ -792,6 +907,7 @@ async def role_human(
     name="bot",
     description="Add this role to every bot member who does not already have it.",
 )
+@app_commands.guild_only()
 @commands.guild_only()
 @commands.has_guild_permissions(manage_roles=True)
 @commands.bot_has_guild_permissions(manage_roles=True)
@@ -809,6 +925,7 @@ async def role_bot(
     aliases=("information",),
     description="Show information about a specific role.",
 )
+@app_commands.guild_only()
 @commands.guild_only()
 async def role_info(
     ctx: commands.Context,

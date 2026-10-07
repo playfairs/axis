@@ -278,14 +278,6 @@ def _command_details(
     description = _description(command).splitlines()[0]
     signature = f" {command.signature}" if command.signature else ""
     parameters = _parameter_details(command)
-    if command.qualified_name == "role create":
-        signature += " [perms=<value>] [color=<value>]"
-        parameters.extend(
-            (
-                "`perms` — optional, permission bitfield; default: `0`",
-                "`color` — optional, hex or named color; default: role color",
-            )
-        )
     aliases = ", ".join(f"`{alias}`" for alias in command.aliases) or "None"
     permissions = "; ".join(_permission_requirements(command)) or "None"
     cooldown = getattr(command._buckets, "_cooldown", None)
@@ -361,7 +353,7 @@ def _example_value(command: commands.Command, name: str) -> str:
     if normalized in {"member", "user"}:
         return "1426711359059394662"
     if normalized in {"target", "role", "role_input"}:
-        return "Moderator"
+        return "Swag"
     if normalized == "user_id":
         return "1426711359059394662"
     if normalized in {"channel_id", "category_id", "target_id", "role_id"}:
@@ -369,7 +361,7 @@ def _example_value(command: commands.Command, name: str) -> str:
     if normalized in {"target_or_name"}:
         return "#general"
     if normalized in {"name", "new_name"}:
-        return "example-name"
+        return "amazing-name"
     if normalized in {"color", "colour"}:
         return "Purple"
     if normalized == "username":
@@ -412,6 +404,7 @@ def _command_examples(command: commands.Command, prefix: str) -> list[str]:
         examples.extend(
             (
                 f"{prefix}role create moderators perms=8",
+                f"{prefix}role create pastel color=yellow",
                 f"{prefix}role create pastel perms=8 color=C4A7E7",
                 f"{prefix}role create pastel perms=8 color=#C4A7E7",
                 f"{prefix}role create pastel perms=8 color=0xC4A7E7",
