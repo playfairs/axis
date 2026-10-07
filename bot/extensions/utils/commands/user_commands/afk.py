@@ -18,6 +18,8 @@ class AfkContainer(discord.ui.LayoutView):
 
 
 @commands.hybrid_command(name="afk", description="Set your AFK status.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.describe(reason="Optional reason for being AFK.")
 async def afk(
     ctx: commands.Context,
