@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="424" viewBox="0 0 1200 424" fill="none">
+    <defs>
+        <linearGradient id="base" x1="0" y1="212" x2="1200" y2="212" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#090909"/>
+            <stop offset=".56" stop-color="#191919"/>
+            <stop offset="1" stop-color="#101010"/>
+        </linearGradient>
+        <radialGradient id="light-glow" cx="0" cy="0" r="1" gradientTransform="matrix(-497 330 -351 -528 1000 51)" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#ffffff" stop-opacity=".16"/>
+            <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="low-glow" cx="0" cy="0" r="1" gradientTransform="matrix(464 -245 255 482 157 475)" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#bdbdbd" stop-opacity=".11"/>
+            <stop offset="1" stop-color="#bdbdbd" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="wordmark" x1="850" y1="285" x2="1150" y2="365" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#ffffff"/>
+            <stop offset=".64" stop-color="#e5e5e5"/>
+            <stop offset="1" stop-color="#a8a8a8"/>
+        </linearGradient>
+    </defs>
+    <path fill="url(#base)" d="M0 0h1200v424H0z"/>
+    <path fill="url(#light-glow)" d="M0 0h1200v424H0z"/>
+    <path fill="url(#low-glow)" d="M0 0h1200v424H0z"/>
+    <path stroke="#bdbdbd" stroke-opacity=".28" d="M.5.5h1199v423H.5z"/>
+    <text x="1144" y="374" fill="url(#wordmark)" font-family="Satoshi, Arial, sans-serif" font-size="100" font-weight="400" letter-spacing="-7" text-anchor="end">vortex</text>
+</svg>
