@@ -131,6 +131,8 @@ async def usage_command(ctx: commands.Context) -> None:
 
 
 @usage_command.command(name="guild", description="Show usage for a guild.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.describe(guild_id="Guild ID (defaults to the current guild).")
 async def usage_guild(ctx: commands.Context, guild_id: str | None = None) -> None:
     target_guild_id = ctx.guild.id if guild_id is None and ctx.guild else None
@@ -221,6 +223,8 @@ async def usage_guild(ctx: commands.Context, guild_id: str | None = None) -> Non
 
 
 @usage_command.command(name="user", description="Show usage for a user.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.describe(user="User to show (defaults to you).")
 async def usage_user(
     ctx: commands.Context,
@@ -293,6 +297,8 @@ async def usage_user(
 
 
 @usage_command.command(name="command", description="Show usage for a command.")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.describe(
     command_name="Command name, such as `serverinfo` or `role info`."
 )
