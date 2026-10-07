@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 from collections import defaultdict
+from dataclasses import dataclass, field
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, get_args, get_origin
 
@@ -180,7 +182,12 @@ def _parameter_type_name(annotation: object, converter: object) -> str:
 
 
 def _description(command: commands.Command) -> str:
-    description = command.help or command.brief or inspect.getdoc(command.callback)
+    description = (
+        command.description
+        or command.help
+        or command.brief
+        or inspect.getdoc(command.callback)
+    )
     app_command = getattr(command, "app_command", None)
     if not description and app_command is not None:
         description = app_command.description
@@ -250,12 +257,27 @@ def _command_suggestion(
     )
 
 
+@dataclass(slots=True)
+class _GroupPagination:
+    page: int
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+
 def _command_details(
     command: commands.Command,
     prefix: str,
 ) -> list[discord.ui.Item]:
     description = _description(command).splitlines()[0]
     signature = f" {command.signature}" if command.signature else ""
+    parameters = _parameter_details(command)
+    if command.qualified_name == "role create":
+        signature += " [perms=<value>] [color=<value>]"
+        parameters.extend(
+            (
+                "`perms` — optional, permission bitfield; default: `0`",
+                "`color` — optional, hex or named color; default: role color",
+            )
+        )
     aliases = ", ".join(f"`{alias}`" for alias in command.aliases) or "None"
     permissions = "; ".join(_permission_requirements(command)) or "None"
     cooldown = getattr(command._buckets, "_cooldown", None)
@@ -280,7 +302,6 @@ def _command_details(
             f"**Cooldown:** {cooldown_text}"
         ),
     ]
-    parameters = _parameter_details(command)
     if parameters:
         items.extend(
             (
@@ -356,18 +377,37 @@ class _GroupPageButton(discord.ui.Button["HelpView"]):
         ):
             raise TypeError("Group help pagination button is not attached to a group.")
 
-        page = max(0, min(view.page + self.direction, view.total_pages - 1))
-        updated_view = HelpView(
-            view.bot,
-            command=view.command,
-            page=page,
-            prefix=view.prefix,
-            is_bot_owner=view.is_bot_owner,
-        )
-        await interaction.response.edit_message(
-            view=updated_view,
-            allowed_mentions=discord.AllowedMentions.none(),
-        )
+        await interaction.response.defer()
+        pagination = view.pagination
+        async with pagination.lock:
+            page = max(0, min(pagination.page + self.direction, view.total_pages - 1))
+            if page == pagination.page:
+                return
+            updated_view = HelpView(
+                view.bot,
+                command=view.command,
+                page=page,
+                prefix=view.prefix,
+                is_bot_owner=view.is_bot_owner,
+                pagination=pagination,
+            )
+            try:
+                await interaction.edit_original_response(
+                    view=updated_view,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except discord.HTTPException as error:
+                logger.warning(
+                    "Could not update help pagination for %s (HTTP %s).",
+                    view.command.qualified_name,
+                    error.status,
+                )
+                await interaction.followup.send(
+                    "Couldn't update the help page. Please try again.",
+                    ephemeral=True,
+                )
+                return
+            pagination.page = page
 
 
 class _GroupPageIndicator(discord.ui.Button["HelpView"]):
@@ -390,6 +430,7 @@ class HelpView(discord.ui.LayoutView):
         page: int = 0,
         prefix: str = ",",
         is_bot_owner: bool = False,
+        pagination: _GroupPagination | None = None,
     ) -> None:
         super().__init__(timeout=900)
         self.bot = bot
@@ -406,6 +447,7 @@ class HelpView(discord.ui.LayoutView):
         )
         self.total_pages = len(subcommands) + 1 if subcommands else 1
         self.page = max(0, min(page, self.total_pages - 1))
+        self.pagination = pagination or _GroupPagination(self.page)
         categories = _root_commands(
             bot,
             include_owner_commands=is_bot_owner,
@@ -515,7 +557,11 @@ class HelpView(discord.ui.LayoutView):
             )
 
 
-@commands.hybrid_command(name="help", aliases=("h",))
+@commands.hybrid_command(
+    name="help",
+    aliases=("h",),
+    description="Browse commands or show detailed help for a command.",
+)
 @app_commands.describe(command_name="The command to show detailed help for.")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)
@@ -524,7 +570,6 @@ async def help_command(
     *,
     command_name: str | None = None,
 ) -> None:
-    """Browse loaded Axis commands or show detailed help for one command."""
     is_bot_owner = (
         ctx.bot.owner_ids is not None and ctx.author.id in ctx.bot.owner_ids
     )
@@ -574,13 +619,16 @@ async def help_command(
         allowed_mentions=discord.AllowedMentions.none(),
     )
 
-@commands.command(name="where", aliases=("which",))
+@commands.command(
+    name="where",
+    aliases=("which",),
+    description="Show which extension defines a command.",
+)
 async def where_command(
     ctx: commands.Context,
     *,
     command_name: str,
 ) -> None:
-    """Show which loaded extension defines a command."""
     command, alias_used = _resolve_command_reference(ctx.bot, command_name)
     if command is None:
         await ctx.send(f"No loaded command matches `{command_name}`.")

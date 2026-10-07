@@ -133,7 +133,7 @@ def _chunk_bot_entries(entries: list[str]) -> list[str]:
     ]
 
 
-@commands.command(name="bots")
+@commands.command(name="bots", description="List the bots in this server.")
 @commands.guild_only()
 async def bots(ctx: commands.Context) -> None:
     """List all bots in this server."""

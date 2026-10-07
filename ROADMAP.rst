@@ -147,11 +147,16 @@ from the command invoker.
   Gives the role to the member. This shorthand is equivalent to
   ``role give <member> <role>``.
 
-``role create [name] [perms=<value>]``
-  Creates a role, defaulting to ``new-role`` with no permissions. The optional
-  ``perms=`` value is a non-negative numeric Discord permission bitfield; for
-  example, ``role create moderators perms=8`` grants the Administrator
-  permission. The bitfield must not exceed ``9007199254740991``.
+``role create [name] [perms=<value>] [color=<value>]``
+  Creates a role, defaulting to ``new-role`` with no permissions and the
+  default color. The optional ``perms=`` value is a non-negative numeric
+  Discord permission bitfield; for example, ``role create moderators perms=8``
+  grants the Administrator permission. The bitfield must not exceed
+  ``9007199254740991``. The optional ``color=`` value accepts hex colors with
+  no prefix, ``#`` or ``0x`` (including three-digit shorthand), or a named
+  Discord color, such as ``color=C4A7E7``, ``color=#C4A7E7``,
+  ``color=0xC4A7E7``, ``color=CAE``, or ``color=Purple``. The options can be
+  supplied in either order.
 
 ``role delete <role>``
   Deletes the specified role. The default ``@everyone`` role and managed
@@ -164,13 +169,24 @@ from the command invoker.
   Removes the role from the member, subject to permission and hierarchy
   checks.
 
+``role human <role>``
+  Adds the role to every non-bot member who does not already have it.
+
+``role bot <role>``
+  Adds the role to every bot member who does not already have it.
+
 ``role rename <role> <name>``
   Renames the specified role. Names must contain 1 to 100 characters;
   managed roles and ``@everyone`` cannot be renamed.
 
-``role color <role> <hex>`` (alias: ``colour``)
-  Changes the role color. Accepts values such as ``#5865F2`` or ``0x5865F2``.
+``role color <role> <color>`` (alias: ``colour``)
+  Changes the role color. Accepts hex values with no prefix, ``#`` or ``0x``
+  (including three-digit shorthand) or a named Discord color, such as
+  ``Purple``.
   Managed roles and ``@everyone`` cannot be recolored.
+
+``role hoist <role>``
+  Toggles whether the role is displayed separately in the member list.
 
 ``role info <role>`` (alias: ``information``)
   Shows the same role information as ``roleinfo <role>``.

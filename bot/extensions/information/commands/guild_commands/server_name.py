@@ -22,7 +22,11 @@
 from bot.base.imports import commands
 
 
-@commands.command(name="servername", aliases=("sname", "guildname", "gname"))
+@commands.command(
+    name="servername",
+    aliases=("sname", "guildname", "gname"),
+    description="Show or change this server's name.",
+)
 @commands.has_guild_permissions(manage_guild=True)
 async def server_name(
     ctx: commands.Context,

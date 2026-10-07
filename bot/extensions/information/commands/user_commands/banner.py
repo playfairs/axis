@@ -39,7 +39,10 @@ class BannerView(discord.ui.LayoutView):
         self.add_item(container)
 
 
-@commands.hybrid_command(name="banner")
+@commands.hybrid_command(
+    name="banner",
+    description="Show your banner or another user's banner.",
+)
 @app_commands.describe(user="Show's a users banner if any,")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)

@@ -131,7 +131,11 @@ class RoleInfoView(discord.ui.LayoutView):
         )
 
 
-@commands.hybrid_command(name="roleinfo", aliases=("ri",))
+@commands.hybrid_command(
+    name="roleinfo",
+    aliases=("ri",),
+    description="Show detailed information about a server role.",
+)
 @app_commands.describe(role="The role to show information about.")
 @app_commands.guild_only()
 async def role_info(ctx: commands.Context, role: discord.Role) -> None:

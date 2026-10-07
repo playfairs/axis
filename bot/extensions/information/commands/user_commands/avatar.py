@@ -40,7 +40,11 @@ class AvatarView(discord.ui.LayoutView):
         self.add_item(container)
 
 
-@commands.hybrid_command(name="avatar", aliases=("av",))
+@commands.hybrid_command(
+    name="avatar",
+    aliases=("av",),
+    description="Show your avatar or another user's avatar.",
+)
 @app_commands.describe(user="Show's a users avatar, or default avatar if none.")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)

@@ -250,7 +250,11 @@ class GitHubRepositoryView(discord.ui.LayoutView):
         )
 
 
-@commands.hybrid_command(name="github", aliases=["git", "gh"])
+@commands.hybrid_command(
+    name="github",
+    aliases=["git", "gh"],
+    description="Look up a GitHub user or repository.",
+)
 @app_commands.describe(username="A GitHub username or repository in owner/name format.")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)

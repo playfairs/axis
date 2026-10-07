@@ -22,7 +22,11 @@ from bot.base.imports import commands, discord
 CHANNEL_MENTION = re.compile(r"<#(\d+)>")
 
 
-@commands.command(name="channelid", aliases=("cid",))
+@commands.command(
+    name="channelid",
+    aliases=("cid",),
+    description="Show this channel's ID or look up a channel by ID or mention.",
+)
 async def channel_id(
     ctx: commands.Context,
     channel_id: str | None = None,

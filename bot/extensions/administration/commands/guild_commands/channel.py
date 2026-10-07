@@ -31,12 +31,20 @@ async def _resolve_channel(
     return target
 
 
-@commands.group(name="channel", invoke_without_command=True)
+@commands.group(
+    name="channel",
+    invoke_without_command=True,
+    description="Create, rename, and delete server channels.",
+)
 async def channel(ctx: commands.Context) -> None:
     await ctx.invoke(help_command, command_name="channel")
 
 
-@channel.command(name="create", aliases=["new"])
+@channel.command(
+    name="create",
+    aliases=["new"],
+    description="Create a text channel, optionally inside a category.",
+)
 @commands.has_guild_permissions(manage_channels=True)
 @commands.bot_has_guild_permissions(manage_channels=True)
 async def channel_create(
@@ -91,7 +99,10 @@ async def channel_create(
     await ctx.send(f"Created {created.mention}.")
 
 
-@channel.command(name="rename")
+@channel.command(
+    name="rename",
+    description="Rename this channel or another channel by ID or mention.",
+)
 @commands.has_guild_permissions(manage_channels=True)
 @commands.bot_has_guild_permissions(manage_channels=True)
 async def channel_rename(
@@ -152,7 +163,10 @@ async def channel_rename(
     await ctx.send(f"Renamed **{old_name}** to **{target.name}**.")
 
 
-@channel.command(name="delete")
+@channel.command(
+    name="delete",
+    description="Delete this channel or another channel by ID or mention.",
+)
 @commands.has_guild_permissions(manage_channels=True)
 @commands.bot_has_guild_permissions(manage_channels=True)
 async def channel_delete(

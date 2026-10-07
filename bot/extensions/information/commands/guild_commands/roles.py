@@ -143,7 +143,7 @@ def _chunk_role_entries(entries: list[str]) -> list[str]:
     ]
 
 
-@commands.command(name="roles")
+@commands.command(name="roles", description="List the roles in this server.")
 @commands.guild_only()
 async def roles(ctx: commands.Context) -> None:
     guild = ctx.guild

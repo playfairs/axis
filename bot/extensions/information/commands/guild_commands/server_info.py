@@ -130,7 +130,11 @@ class ServerInfoView(discord.ui.LayoutView):
         )
 
 
-@commands.hybrid_command(name="serverinfo", aliases=("guildinfo", "si"))
+@commands.hybrid_command(
+    name="serverinfo",
+    aliases=("guildinfo", "si"),
+    description="Show detailed information about this server.",
+)
 @app_commands.guild_only()
 async def server_info(ctx: commands.Context) -> None:
     guild = ctx.guild

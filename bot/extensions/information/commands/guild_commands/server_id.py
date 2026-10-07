@@ -21,7 +21,11 @@
 from bot.base.imports import commands
 
 
-@commands.command(name="serverid", aliases=("guildid", "sid"))
+@commands.command(
+    name="serverid",
+    aliases=("guildid", "sid"),
+    description="Show this server's ID.",
+)
 async def server_id(ctx: commands.Context) -> None:
     if ctx.guild is None:
         await ctx.send("This command can only be used in a server.")

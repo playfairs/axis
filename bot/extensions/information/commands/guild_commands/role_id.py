@@ -22,7 +22,11 @@ from bot.base.imports import app_commands, commands, discord
 ROLE_MENTION = re.compile(r"<@&(\d+)>")
 
 
-@commands.hybrid_command(name="roleid", aliases=("rid",))
+@commands.hybrid_command(
+    name="roleid",
+    aliases=("rid",),
+    description="Look up a role by ID or mention and show its ID.",
+)
 @app_commands.describe(role_id="The role mention or ID to look up.")
 @app_commands.guild_only()
 async def role_id(

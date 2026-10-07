@@ -162,7 +162,11 @@ async def _send_user_id_responses(
         await ctx.send(message, allowed_mentions=discord.AllowedMentions.none())
 
 
-@commands.hybrid_command(name="userid", aliases=("uid", "whoid", "id"))
+@commands.hybrid_command(
+    name="userid",
+    aliases=("uid", "whoid", "id"),
+    description="Look up a user by ID, mention, or name.",
+)
 @app_commands.describe(user_id="The ID, mention, or name of the user to look up.")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.allowed_installs(guilds=True, users=True)
