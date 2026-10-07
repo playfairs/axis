@@ -15,6 +15,11 @@ from bot.base.imports import (
     logger,
 )
 
+EXAMPLE_USER_ID = "1426711359059394662"
+EXAMPLE_USER_NAME = "playfairs"
+USER_TARGET_ARGUMENTS = frozenset({"member", "user", "user_id"})
+
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -260,12 +265,15 @@ def _command_suggestion(
 @dataclass(slots=True)
 class _GroupPagination:
     page: int
+    more_details: bool = False
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
 def _command_details(
     command: commands.Command,
     prefix: str,
+    *,
+    more: bool = False,
 ) -> list[discord.ui.Item]:
     description = _description(command).splitlines()[0]
     signature = f" {command.signature}" if command.signature else ""
@@ -315,7 +323,119 @@ def _command_details(
             discord.ui.TextDisplay(f"**Extension:** {extension}"),
         )
     )
+    if more:
+        command_type = "Command group" if isinstance(command, commands.Group) else "Command"
+        slash_command = getattr(command, "app_command", None)
+        extra_details = [
+            f"**Type:** {command_type}",
+            f"**Status:** {'Enabled' if command.enabled else 'Disabled'}",
+            f"**Visibility:** {'Hidden' if command.hidden else 'Visible'}",
+            f"**Slash command:** {'Available' if slash_command is not None else 'Not available'}",
+        ]
+        if isinstance(command, commands.Group):
+            child_count = sum(not child.hidden for child in command.commands)
+            extra_details.append(f"**Subcommands:** {child_count}")
+            extra_details.append(
+                "**Runs without a subcommand:** "
+                f"{'Yes' if command.invoke_without_command else 'No'}"
+            )
+        items.extend(
+            (
+                discord.ui.Separator(),
+                discord.ui.TextDisplay("### Additional details\n" + "\n".join(extra_details)),
+                discord.ui.Separator(),
+                discord.ui.TextDisplay(
+                    "### Examples\n"
+                    + "\n".join(
+                        f"`{example}`"
+                        for example in _command_examples(command, prefix)
+                    )
+                ),
+            )
+        )
     return items
+
+
+def _example_value(command: commands.Command, name: str) -> str:
+    normalized = name.casefold()
+    if normalized in {"member", "user"}:
+        return "1426711359059394662"
+    if normalized in {"target", "role", "role_input"}:
+        return "Moderator"
+    if normalized == "user_id":
+        return "1426711359059394662"
+    if normalized in {"channel_id", "category_id", "target_id", "role_id"}:
+        return "123456789012345678"
+    if normalized in {"target_or_name"}:
+        return "#general"
+    if normalized in {"name", "new_name"}:
+        return "example-name"
+    if normalized in {"color", "colour"}:
+        return "Purple"
+    if normalized == "username":
+        return "playfairs"
+    if normalized == "command_name":
+        return "role create"
+    parameter = command.clean_params.get(name)
+    if parameter is not None and not parameter.required:
+        return str(parameter.default)
+    return "example"
+
+
+def _single_command_example(
+    command: commands.Command,
+    prefix: str,
+    *,
+    user_target: str | None = None,
+) -> str:
+    arguments: list[str] = []
+    for name, parameter in command.clean_params.items():
+        if name.casefold() in USER_TARGET_ARGUMENTS and user_target is not None:
+            arguments.append(user_target)
+        elif parameter.required:
+            arguments.append(_example_value(command, name))
+    return " ".join((prefix + command.qualified_name, *arguments))
+
+
+def _command_examples(command: commands.Command, prefix: str) -> list[str]:
+    examples = [_single_command_example(command, prefix)]
+    if isinstance(command, commands.Group):
+        examples.extend(
+            example
+            for child in sorted(
+                (child for child in command.commands if not child.hidden),
+                key=lambda child: child.name.casefold(),
+            )
+            for example in _command_examples(child, prefix)
+        )
+    elif command.qualified_name == "role create":
+        examples.extend(
+            (
+                f"{prefix}role create moderators perms=8",
+                f"{prefix}role create pastel perms=8 color=C4A7E7",
+                f"{prefix}role create pastel perms=8 color=#C4A7E7",
+                f"{prefix}role create pastel perms=8 color=0xC4A7E7",
+                f"{prefix}role create pastel perms=8 color=CAE",
+                f"{prefix}role create pastel perms=8 color=Purple",
+                f"{prefix}role create pastel perms=8 color=purple",
+            )
+        )
+    elif any(
+        name.casefold() in USER_TARGET_ARGUMENTS
+        for name in command.clean_params
+    ):
+        examples.extend(
+            _single_command_example(command, prefix, user_target=user_target)
+            for user_target in (EXAMPLE_USER_ID, EXAMPLE_USER_NAME)
+        )
+    elif any(not parameter.required for parameter in command.clean_params.values()):
+        arguments = [
+            _example_value(command, name)
+            for name, parameter in command.clean_params.items()
+            if parameter.required or parameter.default is not None
+        ]
+        examples.append(" ".join((prefix + command.qualified_name, *arguments)))
+    return list(dict.fromkeys(examples))
 
 
 class _CategorySelect(discord.ui.Select["HelpView"]):
@@ -410,6 +530,51 @@ class _GroupPageButton(discord.ui.Button["HelpView"]):
             pagination.page = page
 
 
+class _MoreCommandInfoButton(discord.ui.Button["HelpView"]):
+    def __init__(self, more_details: bool) -> None:
+        self.more_details = more_details
+        super().__init__(
+            label="Less" if more_details else "More",
+            style=discord.ButtonStyle.primary,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        view = self.view
+        if view is None or view.command is None or view.page_command is None:
+            raise TypeError("Command detail button is not attached to a command help view.")
+
+        await interaction.response.defer()
+        pagination = view.pagination
+        async with pagination.lock:
+            previous_more_details = pagination.more_details
+            pagination.more_details = not previous_more_details
+            updated_view = HelpView(
+                view.bot,
+                command=view.command,
+                page=pagination.page,
+                prefix=view.prefix,
+                is_bot_owner=view.is_bot_owner,
+                pagination=pagination,
+            )
+            try:
+                await interaction.edit_original_response(
+                    view=updated_view,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except discord.HTTPException as error:
+                pagination.more_details = previous_more_details
+                logger.warning(
+                    "Could not update help details for %s (HTTP %s).",
+                    view.page_command.qualified_name,
+                    error.status,
+                )
+                await interaction.followup.send(
+                    "Couldn't update the help details. Please try again.",
+                    ephemeral=True,
+                )
+                return
+
+
 class _GroupPageIndicator(discord.ui.Button["HelpView"]):
     def __init__(self, page: int, total_pages: int) -> None:
         super().__init__(
@@ -448,6 +613,11 @@ class HelpView(discord.ui.LayoutView):
         self.total_pages = len(subcommands) + 1 if subcommands else 1
         self.page = max(0, min(page, self.total_pages - 1))
         self.pagination = pagination or _GroupPagination(self.page)
+        self.page_command = (
+            subcommands[self.page - 1]
+            if isinstance(command, commands.Group) and self.page > 0
+            else command
+        )
         categories = _root_commands(
             bot,
             include_owner_commands=is_bot_owner,
@@ -472,11 +642,17 @@ class HelpView(discord.ui.LayoutView):
             )
         elif command is not None:
             selected_category = _category_name(command)
-            page_command = command
-            if isinstance(command, commands.Group) and self.page > 0:
-                page_command = subcommands[self.page - 1]
+            page_command = self.page_command
+            if page_command is None:
+                raise RuntimeError("Command help page is missing its command.")
             try:
-                content.extend(_command_details(page_command, prefix))
+                content.extend(
+                    _command_details(
+                        page_command,
+                        prefix,
+                        more=self.pagination.more_details,
+                    )
+                )
             except Exception:
                 logger.exception(
                     "Failed to render help page for command %s; showing an ellipsis.",
@@ -543,18 +719,22 @@ class HelpView(discord.ui.LayoutView):
         self.add_item(
             discord.ui.Container(*content, accent_color=DEFAULT_CONTAINER_COLOR)
         )
-        if isinstance(command, commands.Group) and subcommands:
+        if command is not None:
             container = self.children[0]
             if not isinstance(container, discord.ui.Container):
                 raise TypeError("Command help content is not inside a Container.")
-            container.add_item(discord.ui.Separator())
-            container.add_item(
-                discord.ui.ActionRow(
-                    _GroupPageButton(-1, self.page, self.total_pages),
-                    _GroupPageIndicator(self.page, self.total_pages),
-                    _GroupPageButton(1, self.page, self.total_pages),
+            controls: list[discord.ui.Item] = []
+            if isinstance(command, commands.Group) and subcommands:
+                controls.extend(
+                    (
+                        _GroupPageButton(-1, self.page, self.total_pages),
+                        _GroupPageIndicator(self.page, self.total_pages),
+                        _GroupPageButton(1, self.page, self.total_pages),
+                    )
                 )
-            )
+            controls.append(_MoreCommandInfoButton(self.pagination.more_details))
+            container.add_item(discord.ui.Separator())
+            container.add_item(discord.ui.ActionRow(*controls))
 
 
 @commands.hybrid_command(
