@@ -1,76 +1,131 @@
-# TODO
+# Command TODO
 
-Need to make the following
+Planned commands are grouped by what they do. Commands that are already
+implemented are not listed here.
 
----
+## Moderation
 
-### Automod (bot.extensions.automod.commands.guild_commands.automod)
+### Automod
 
-aliases: `am`
+Module: `bot.extensions.automod.commands.guild_commands.automod`; alias: `am`
 
-- `automod alert` - Configure alert settings for Automod Rule
-- `automod config` - Shows the current Automod Rule configuration
-- `automod disable` - Disables the Automod Filter
-- `automod edit` - Edit the action of the Automod Filter
-- `automod enable` - Enable the Automod Filter
-- `automod exempt` - Exempt a role from the Automod Filer
-- `automod filter` - Filter a word or pattern via Automod Rule
-- `automod list` - List all filtered words
-- `automod remove` - Remove a word from the Automod Filter
+**Rules**
 
-### Blacklist (bot.extensions.blacklist.commands.global_commands.blacklist)
+- `automod filter` - Add a word or pattern to an Automod rule
+- `automod edit` - Change the action for an Automod rule
+- `automod remove` - Remove a word or pattern from an Automod rule
+- `automod list` - List the words and patterns being filtered
+- `automod test <text>` - Check which rules match text without taking action
 
-aliases: `bl`
+**Configuration**
 
-- `blacklist extend` - Blacklist more than one guild, user, or both at once
-- `blacklist guild` - Blacklist a specific guild
-- `blacklist list` - List all blacklisted Guilds and Users
-- `blacklist remove` - Remove a user or guild from the bkacklist
-- `blacklist user` - Blacklist a specific user
-- `blacklist view` - Get information about a user or guild in the blacklist
+- `automod config` - Show the current Automod configuration
+- `automod enable` - Enable the Automod filter
+- `automod disable` - Disable the Automod filter
+- `automod alert` - Configure where Automod alerts are sent
 
-### Change (bot.extensions.owner.commands.*)
+**Exemptions**
 
-- `change avatar` - Changes the bot's avatar via Attachment or URL
-- `change banner` - Changes the bot's banner via Attachment or URL
-- `change server avatar` - Changes the bot's server avatar via Attachment or URL
-- `change server banner` - Changes the bot's server banner via Attachment or URL
-- `change server bio` - Changes the bot's server bio
+- `automod exempt role <role>` - Exempt a role from Automod
+- `automod exempt channel <channel>` - Exempt a channel from Automod
+- `automod exempt list` - List roles and channels exempt from Automod
 
-### Channel
+### Message cleanup
 
-- `channel lock` - Locks a specific channel or the current one
-- `channel unlock` - Unlocks a specific channel or the current one
-- `channel hide` - Hides a specific channel or the current one
-- `channel unhide` - Unhides a specific channel or the current one
+Module: `bot.extensions.moderation.commands.guild_commands.purge`; aliases: `c`, `clear`, `delete`
 
+**By amount or author**
 
-### Information
+- `purge <count>` - Purge a specific number of messages
+- `purge bot [count]` - Purge recent messages sent by bots
+- `purge from <user>` - Purge recent messages from a specific user
+- `purge mentions [user]` - Purge messages with mentions, optionally from or of a specific user
+- `purge self` - Purge recent messages from the command invoker
 
-- `inrole` - Displays all members in a specific role
+**By message range**
 
+- `purge after <message_id>` - Purge messages after a specific message
+- `purge before <message_id>` - Purge messages before a specific message
 
-### Purge (bot.extensions.moderation.commands.guild_commands.purge)
+**By content or attachment**
 
-aliases: `c`, `clear`, `delete`
+- `purge contains <content>` - Purge messages containing specific text
+- `purge startswith <content>` - Purge messages starting with specific text
+- `purge endswith <content>` - Purge messages ending with specific text
+- `purge links` - Purge messages containing URLs, excluding GIFs
+- `purge invites` - Purge messages containing Discord invite links
+- `purge gifs` - Purge messages containing a GIF
+- `purge stickers` - Purge messages containing a sticker
+- `purge attachments` - Purge messages containing file attachments
+- `purge embeds` - Purge messages containing embeds
 
-- `purge <count>` - Purges a specific amount of messages
-- `purge bot [count]` - Purges the last 100 bot messages
-- `purge after <message_id` - Purges all messages after a specific message id
-- `purge from <user>` - Purges the last 100 messages from a specific user
-- `purge before <message_id>` - Purges the last 100 messages before a specific message id
-- `purge contains <content>` - Purges the last 100 messages containing specific text
-- `purge links` - Purges the last 100 messages containing any URLs (ignores gifs)
-- `purge gifs` - Purges the last 100 messages containing a gif
-- `purge stickers` - Purges the last 100 messages containing a sticker
-- `purge endswith <content>` - Purges the last 100 messages ending with specific text
-- `purge startswith <content>` - Purges the last 100 messages starting with specific text
-- `purge invites` - Purges the last 100 messages containing an invite link (discord.gg/*, .gg/*)
-- `purge mentions [user]` - Purges the last 100 messages containing user mentions, or a specific user if specified
-- `purge self` - Purges the last 100 messages from the command invoker
-- `purge reactions` - Purges reactions on the last 100 messages
+**Other**
 
-### Utility
+- `purge reactions` - Remove reactions from recent messages
 
-- `define` - Searches for a word via the Merriam-Webster Dictionary
-- `urban` - Searches for a word via the Urban Dictionary API
+### Member moderation
+
+**Warnings**
+
+- `warn <member> [reason]` - Issue a warning to a member
+- `warnings <member>` - Show a member's warnings
+- `warnings clear <member>` - Clear a member's warnings
+
+**Timeouts**
+
+- `timeout <member> <duration> [reason]` - Temporarily prevent a member from interacting
+- `untimeout <member> [reason]` - Remove a member's timeout
+
+**Moderation log**
+
+- `modlog set <channel>` - Set the channel for moderation action logs
+- `modlog disable` - Stop sending moderation action logs
+
+### Global blacklist
+
+Module: `bot.extensions.blacklist.commands.global_commands.blacklist`; alias: `bl`
+
+- `blacklist user <user> [reason]` - Blacklist a user from using the bot
+- `blacklist guild <guild> [reason]` - Blacklist a server from using the bot
+- `blacklist extend` - Add multiple users or servers to the blacklist
+- `blacklist list` - List blacklisted users and servers
+- `blacklist view <user or guild>` - Show blacklist details
+- `blacklist remove <user or guild>` - Remove a user or server from the blacklist
+
+## Server administration
+
+### Channels
+
+Module: `bot.extensions.administration.commands.guild_commands.channel`
+
+- `channel lock [channel]` - Prevent members from sending messages in a channel
+- `channel unlock [channel]` - Restore member messaging permissions
+- `channel hide [channel]` - Hide a channel from members
+- `channel unhide [channel]` - Restore member access to a channel
+- `channel slowmode <duration> [channel]` - Set or update a channel's slowmode
+- `channel topic <text> [channel]` - Set a channel's topic
+
+### Bot profile
+
+Module: `bot.extensions.owner.commands.*`
+
+- `change avatar` - Change the bot's avatar using an attachment or URL
+- `change banner` - Change the bot's banner using an attachment or URL
+- `change server avatar` - Change the bot's server avatar using an attachment or URL
+- `change server banner` - Change the bot's server banner using an attachment or URL
+- `change server bio` - Change the bot's server bio
+- `change activity <text>` - Update the bot's activity or status text
+
+## Information
+
+- `inrole <role>` - List members who have a specific role
+- `channelinfo [channel]` - Show details about a channel
+- `permissions <member> [channel]` - Show a member's effective permissions
+- `roles <member>` Update the existing `roles` command to accept `<member>` and show that member's current roles.
+
+## Utility and community
+
+- `define <word>` - Search the Merriam-Webster Dictionary
+- `urban <word>` - Search the Urban Dictionary
+- `poll <question> <options...>` - Create a poll with multiple choices
+- `remind <duration> <message>` - Send the command invoker a reminder
