@@ -116,7 +116,6 @@ Module: `bot.extensions.owner.commands.*`
 
 ## Information
 
-- `channelinfo [channel]` - Show details about a channel
 - `permissions <member> [channel]` - Show a member's effective permissions
 
 ## Utility and community

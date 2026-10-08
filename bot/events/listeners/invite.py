@@ -194,6 +194,8 @@ async def on_guild_join(
     guild: discord.Guild,
 ) -> None:
     """Announce new guild joins and DM the configured notification user."""
+    if not bot.is_ready():
+        return
     await _send_guild_announcement(bot, guild, action="Added to")
 
     inviter = await _find_inviter(guild, bot.user.id if bot.user else 0)
@@ -241,4 +243,24 @@ async def on_guild_remove(
     guild: discord.Guild,
 ) -> None:
     """Announce when the bot leaves or is removed from a guild."""
+    if not bot.is_ready():
+        return
+    try:
+        await bot.fetch_guild(guild.id)
+    except discord.NotFound:
+        pass
+    except discord.HTTPException as error:
+        logger.warning(
+            "Could not verify removal from guild %s (HTTP %s); skipping announcement.",
+            guild.id,
+            error.status,
+        )
+        return
+    else:
+        logger.info(
+            "Ignoring guild removal event for guild %s because the bot is still a member.",
+            guild.id,
+        )
+        return
+
     await _send_guild_announcement(bot, guild, action="Removed from")
