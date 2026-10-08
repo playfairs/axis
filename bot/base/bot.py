@@ -15,8 +15,8 @@
 # See the UNLICENSE file for details.
 
 
+import asyncio
 import logging
-import os
 from typing import Any
 
 import asyncpg
@@ -41,7 +41,6 @@ from bot.events.listeners.invite import (
 from bot.events.listeners.usage import on_command_completion as track_command_usage
 from bot.errors.handlers.roles import handle_role_error
 from bot.logging.setup import Logger
-from bot.rpc.lastfm import LastFMActivity
 
 
 class Axis(commands.Bot):
@@ -66,7 +65,7 @@ class Axis(commands.Bot):
         self.add_listener(self._on_guild_join, "on_guild_join")
         self.add_listener(self._on_guild_remove, "on_guild_remove")
         self.add_listener(track_command_usage, "on_command_completion")
-        self._lastfm_activity: LastFMActivity | None = None
+        self._presence_task: asyncio.Task[None] | None = None
         self.add_check(self._jishaku_owner_check)
 
     async def setup_hook(self) -> None:
@@ -89,22 +88,40 @@ class Axis(commands.Bot):
             await self.load_extension(extension)
             logger.info(f"Loaded extension {extension}")
 
-        lastfm_api_key = os.getenv("LASTFM_API_KEY")
-        if lastfm_api_key:
-            self._lastfm_activity = LastFMActivity(self, lastfm_api_key)
-            self._lastfm_activity.start()
-        else:
-            logger.warning(
-                "LASTFM_API_KEY is not configured; Last.fm activity is disabled."
-            )
+        self._presence_task = asyncio.create_task(self._update_presence_loop())
 
     async def close(self) -> None:
-        if self._lastfm_activity is not None:
-            await self._lastfm_activity.close()
+        if self._presence_task is not None:
+            self._presence_task.cancel()
+            try:
+                await self._presence_task
+            except asyncio.CancelledError:
+                pass
+            self._presence_task = None
         if self.database_pool is not None:
             await self.database_pool.close()
             self.database_pool = None
         await super().close()
+
+    async def _update_presence_loop(self) -> None:
+        await self.wait_until_ready()
+        while not self.is_closed():
+            guild_count = len(self.guilds)
+            guild_label = "guild" if guild_count == 1 else "guilds"
+            user_count = sum(guild.member_count for guild in self.guilds)
+            user_label = "user" if user_count == 1 else "users"
+            custom_status = (
+                f",help — {user_count} {user_label} — "
+                f"{guild_count} {guild_label}"
+            )
+            try:
+                await self.change_presence(
+                    activity=discord.CustomActivity(name=custom_status),
+                    status=discord.Status.online,
+                )
+            except discord.HTTPException:
+                logger.warning("Failed to update Discord presence.")
+            await asyncio.sleep(60)
 
     async def on_message(self, message: discord.Message) -> None:
         from bot.extensions.utils.commands.user_commands.afk import (
