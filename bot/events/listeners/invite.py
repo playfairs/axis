@@ -5,7 +5,6 @@ from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, discord
 logger = logging.getLogger(__name__)
 
 ANNOUNCEMENT_CHANNEL_IDS = (
-    1557603476236931162,
     1374163885124485171,
 )
 NOTIFICATION_USER_ID = 1426711359059394662
