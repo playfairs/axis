@@ -1,6 +1,6 @@
 import discord
 
-from bot.base.imports import commands, logger
+from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, logger
 from bot.core.client.help import help_command
 
 
@@ -38,6 +38,117 @@ async def _resolve_channel(
 )
 async def channel(ctx: commands.Context) -> None:
     await ctx.invoke(help_command, command_name="channel")
+
+
+class ChannelInfoView(discord.ui.LayoutView):
+    def __init__(self, channel: discord.abc.GuildChannel) -> None:
+        super().__init__()
+        channel_type = channel.__class__.__name__.replace("Channel", "").replace(
+            "Thread", "Thread"
+        )
+        if isinstance(channel, discord.CategoryChannel):
+            channel_type = "Category"
+        elif isinstance(channel, discord.ForumChannel):
+            channel_type = "Forum"
+        elif isinstance(channel, discord.TextChannel):
+            channel_type = "Text"
+        elif isinstance(channel, discord.VoiceChannel):
+            channel_type = "Voice"
+        elif isinstance(channel, discord.StageChannel):
+            channel_type = "Stage"
+        elif isinstance(channel, discord.Thread):
+            channel_type = "Thread"
+
+        details_lines = [
+            f"**ID:** `{channel.id}`",
+            f"**Type:** {channel_type}",
+            f"**Mention:** {channel.mention}",
+            f"**Created:** <t:{int(channel.created_at.timestamp())}:F> "
+            f"(<t:{int(channel.created_at.timestamp())}:R>)",
+            f"**Position:** {channel.position}",
+            f"**Category:** {channel.category.mention if channel.category else 'None'}",
+        ]
+        if isinstance(channel, discord.TextChannel):
+            details_lines.extend(
+                [
+                    f"**Topic:** {channel.topic or 'None'}",
+                    f"**Slowmode:** {channel.slowmode_delay}s",
+                    f"**NSFW:** {'Yes' if channel.nsfw else 'No'}",
+                    f"**Members:** {len(channel.members)}",
+                ]
+            )
+        elif isinstance(channel, discord.VoiceChannel):
+            details_lines.extend(
+                [
+                    f"**Bitrate:** {channel.bitrate}bps",
+                    f"**Member limit:** {channel.user_limit or 'Unlimited'}",
+                    f"**RTC region:** {channel.rtc_region or 'Automatic'}",
+                    f"**Members:** {len(channel.members)}",
+                ]
+            )
+        elif isinstance(channel, discord.StageChannel):
+            details_lines.extend(
+                [
+                    f"**Bitrate:** {channel.bitrate}bps",
+                    f"**Member limit:** {channel.user_limit or 'Unlimited'}",
+                    f"**Region:** {channel.rtc_region or 'Automatic'}",
+                    f"**Members:** {len(channel.members)}",
+                ]
+            )
+        elif isinstance(channel, discord.ForumChannel):
+            details_lines.extend(
+                [
+                    f"**NSFW:** {'Yes' if channel.nsfw else 'No'}",
+                    f"**Default reaction:** {channel.default_reaction_emoji or 'None'}",
+                    f"**Archive duration:** {channel.default_auto_archive_duration}",
+                ]
+            )
+        elif isinstance(channel, discord.Thread):
+            details_lines.extend(
+                [
+                    f"**Parent:** {channel.parent.mention if channel.parent else 'None'}",
+                    f"**Archived:** {'Yes' if channel.archived else 'No'}",
+                    f"**Locked:** {'Yes' if channel.locked else 'No'}",
+                    f"**Members:** {len(channel.members) if hasattr(channel, 'members') else 'N/A'}",
+                ]
+            )
+
+        self.add_item(
+            discord.ui.Container(
+                discord.ui.TextDisplay(f"## #{channel.name}"),
+                discord.ui.Separator(),
+                discord.ui.TextDisplay("\n".join(details_lines)),
+                accent_color=DEFAULT_CONTAINER_COLOR,
+            )
+        )
+
+
+@channel.command(
+    name="info",
+    aliases=("details",),
+    description="Show detailed information about a channel.",
+)
+@commands.guild_only()
+async def channel_info(
+    ctx: commands.Context,
+    target: str | None = None,
+) -> None:
+    if ctx.guild is None:
+        await ctx.send("This command can only be used in a server.")
+        return
+
+    resolved = ctx.channel if target is None else await _resolve_channel(ctx, target)
+    if resolved is None:
+        await ctx.send("Couldn't find that channel. Use a channel mention or ID.")
+        return
+    if resolved.guild != ctx.guild:
+        await ctx.send("That channel isn't in this server.")
+        return
+
+    await ctx.send(
+        view=ChannelInfoView(resolved),
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
 
 
 @channel.command(
