@@ -7,13 +7,14 @@ from bot.extensions.moderation._checks import (
 
 
 @commands.command(
-    name="kick",
-    description="Kick a member from this server.",
+    name="untimeout",
+    aliases=["unto", "uto", "rto", "removetimeout"],
+    description="Remove a member's timeout in this server.",
 )
 @commands.guild_only()
-@commands.has_guild_permissions(kick_members=True)
-@commands.bot_has_guild_permissions(kick_members=True)
-async def kick(
+@commands.has_guild_permissions(moderate_members=True)
+@commands.bot_has_guild_permissions(moderate_members=True)
+async def untimeout(
     ctx: commands.Context,
     member: discord.Member,
     *,
@@ -30,18 +31,18 @@ async def kick(
         return
 
     try:
-        await member.kick(reason=reason)
+        await member.timeout(None, reason=reason)
     except discord.HTTPException as error:
         logger.warning(
-            "Could not kick member %s in guild %s (HTTP %s).",
+            "Could not remove timeout from member %s in guild %s (HTTP %s).",
             member.id,
             member.guild.id,
             error.status,
         )
         await send_moderation_error(
             ctx,
-            "Discord couldn't complete the kick. Check my permissions and try again.",
+            "Discord couldn't remove the timeout. Check my permissions and try again.",
         )
         return
 
-    await send_moderation_result(ctx, "Kicked", member, reason)
+    await send_moderation_result(ctx, "Removed timeout from", member, reason)

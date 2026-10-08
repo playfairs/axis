@@ -34,6 +34,10 @@ from bot.config import DISCORD
 from bot.config.bot import BotConfig
 from bot.core.client.help import help_command, where_command
 from bot.core.commands.usage import usage_command
+from bot.events.listeners.invite import (
+    on_guild_join as notify_guild_join,
+    on_guild_remove as notify_guild_remove,
+)
 from bot.events.listeners.usage import on_command_completion as track_command_usage
 from bot.errors.handlers.roles import handle_role_error
 from bot.logging.setup import Logger
@@ -59,6 +63,8 @@ class Axis(commands.Bot):
         self.add_command(help_command)
         self.add_command(where_command)
         self.add_command(usage_command)
+        self.add_listener(self._on_guild_join, "on_guild_join")
+        self.add_listener(self._on_guild_remove, "on_guild_remove")
         self.add_listener(track_command_usage, "on_command_completion")
         self._lastfm_activity: LastFMActivity | None = None
         self.add_check(self._jishaku_owner_check)
@@ -107,6 +113,12 @@ class Axis(commands.Bot):
 
         await handle_afk_message(message, bot=self)
         await self.process_commands(message)
+
+    async def _on_guild_join(self, guild: discord.Guild) -> None:
+        await notify_guild_join(self, guild)
+
+    async def _on_guild_remove(self, guild: discord.Guild) -> None:
+        await notify_guild_remove(self, guild)
 
     def dispatch(self, event: str, /, *args: Any, **kwargs: Any) -> None:
         if self.is_closed():

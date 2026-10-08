@@ -26,10 +26,7 @@ from types import ModuleType
 
 from bot.base.imports import commands, logger
 
-COMMANDS_PACKAGE = "bot.extensions.utils.commands"
-DISABLED_COMMAND_MODULES = frozenset(
-    {"bot.extensions.utils.commands.user_commands.define"}
-)
+COMMANDS_PACKAGE = "bot.extensions.moderation.commands"
 registered_commands: list[str] = []
 
 
@@ -42,7 +39,6 @@ def _command_modules() -> list[ModuleType]:
             prefix=f"{package.__name__}.",
         )
         if not module_info.ispkg
-        and module_info.name not in DISABLED_COMMAND_MODULES
     )
     return [import_module(module_name) for module_name in module_names]
 

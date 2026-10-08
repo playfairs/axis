@@ -101,12 +101,12 @@ class RolesControls(discord.ui.ActionRow):
 class RolesView(discord.ui.LayoutView):
     def __init__(
         self,
-        guild_name: str,
+        title: str,
         role_count: int,
         pages: list[str],
     ) -> None:
         super().__init__()
-        self.guild_name = guild_name
+        self.title = title
         self.role_count = role_count
         self.pages = pages
         self.page = 0
@@ -125,9 +125,7 @@ class RolesView(discord.ui.LayoutView):
         self._update_page()
 
     def _update_page(self) -> None:
-        self.header.content = (
-            f"## Roles in {self.guild_name}\n**Count:** {self.role_count}"
-        )
+        self.header.content = f"## {self.title}\n**Count:** {self.role_count}"
         self.entries.content = self.pages[self.page]
         self.controls.page_count.label = f"{self.page + 1}/{len(self.pages)}"
         self.controls.first.disabled = self.page == 0
@@ -143,21 +141,46 @@ def _chunk_role_entries(entries: list[str]) -> list[str]:
     ]
 
 
-@commands.command(name="roles", description="List the roles in this server.")
+@commands.command(
+    name="roles",
+    description="List this server's roles or a member's roles.",
+)
 @commands.guild_only()
-async def roles(ctx: commands.Context) -> None:
+async def roles(
+    ctx: commands.Context,
+    member: discord.Member | None = None,
+) -> None:
     guild = ctx.guild
     if guild is None:
         await ctx.send("This command can not be used in DMs")
         return
 
-    guild_roles = list(reversed(guild.roles))
-    entries = [f"- {role.mention} (`{role.id}`)" for role in guild_roles]
+    if member is None:
+        guild_roles = list(reversed(guild.roles))
+        title = f"Roles in {guild.name}"
+        entries = [
+            f"{index}. {role.mention} (`{role.id}`)"
+            for index, role in enumerate(guild_roles, start=1)
+        ]
+        role_count = len(guild_roles)
+    else:
+        member_roles = [
+            role for role in reversed(member.roles) if not role.is_default()
+        ]
+        title = f"Roles for {member.display_name} in {guild.name}"
+        entries = [
+            f"{index}. {role.mention} (`{role.id}`)"
+            for index, role in enumerate(member_roles, start=1)
+        ]
+        if not entries:
+            entries = ["This member has no roles besides @everyone."]
+        role_count = len(member_roles)
+
     if not entries:
         entries = ["No roles found in this server."]
     pages = _chunk_role_entries(entries)
 
     await ctx.send(
-        view=RolesView(guild.name, len(guild_roles), pages),
+        view=RolesView(title, role_count, pages),
         allowed_mentions=discord.AllowedMentions.none(),
     )

@@ -42,15 +42,19 @@ to refresh nixpkgs and use its latest Python release.
 External API integrations
 -------------------------
 
-GitHub and Last.fm clients live under ``api/``. Their HTTP transport is
-implemented in C with libcurl and loaded through CFFI. On first use, Axis
-compiles the native transport to a cached ``.dylib`` on macOS or ``.so`` on
-Linux. The compiled library is cached by source version, so subsequent runs
-can load it without ``pkg-config`` or the compiler being on PATH. Run Axis
-inside ``nix develop`` at least once to build it. The Nix shell provides CFFI,
-a C compiler, pkg-config, and libcurl. Outside Nix, the first build requires
-those native development tools and Python ``cffi``. Discord API calls remain
-managed by discord.py.
+GitHub, Last.fm, and dictionary clients live under ``api/``. The ``define``
+command uses the Merriam-Webster Collegiate Dictionary API and requires a
+``MERRIAM_WEBSTER_API_KEY`` in the project-root ``.env``. The ``urban``
+command uses Urban Dictionary's public API and does not require a key.
+
+The HTTP transport is implemented in C with libcurl and loaded through CFFI.
+On first use, Axis compiles the native transport to a cached ``.dylib`` on
+macOS or ``.so`` on Linux. The compiled library is cached by source version,
+so subsequent runs can load it without ``pkg-config`` or the compiler being on
+PATH. Run Axis inside ``nix develop`` at least once to build it. The Nix shell
+provides CFFI, a C compiler, pkg-config, and libcurl. Outside Nix, the first
+build requires those native development tools and Python ``cffi``. Discord
+API calls remain managed by discord.py.
 
 Configuration and logging
 -------------------------

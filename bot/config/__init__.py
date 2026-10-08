@@ -14,6 +14,7 @@ class COGS:
         "bot.extensions.information",
         "bot.extensions.social",
         "bot.extensions.administration",
+        "bot.extensions.moderation",
         "bot.extensions.owner",
         "bot.extensions.utils",
     )

@@ -73,8 +73,6 @@ Module: `bot.extensions.moderation.commands.guild_commands.purge`; aliases: `c`,
 
 **Timeouts**
 
-- `timeout <member> <duration> [reason]` - Temporarily prevent a member from interacting
-- `untimeout <member> [reason]` - Remove a member's timeout
 
 **Moderation log**
 
@@ -118,14 +116,10 @@ Module: `bot.extensions.owner.commands.*`
 
 ## Information
 
-- `inrole <role>` - List members who have a specific role
 - `channelinfo [channel]` - Show details about a channel
 - `permissions <member> [channel]` - Show a member's effective permissions
-- `roles <member>` Update the existing `roles` command to accept `<member>` and show that member's current roles.
 
 ## Utility and community
 
-- `define <word>` - Search the Merriam-Webster Dictionary
-- `urban <word>` - Search the Urban Dictionary
 - `poll <question> <options...>` - Create a poll with multiple choices
 - `remind <duration> <message>` - Send the command invoker a reminder
