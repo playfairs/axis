@@ -694,7 +694,7 @@ class HelpView(discord.ui.LayoutView):
             content[0] = discord.ui.Section(
                 content[0],
                 accessory=discord.ui.Thumbnail(
-                    bot.user.display_avatar.url,
+                    bot.user.display_avatar.with_size(128).url,
                     description="Axis bot avatar",
                 ),
             )

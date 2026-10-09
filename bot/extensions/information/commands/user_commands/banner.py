@@ -30,7 +30,7 @@ class BannerView(discord.ui.LayoutView):
             discord.ui.Separator(),
             discord.ui.MediaGallery(
                 discord.MediaGalleryItem(
-                    banner.url,
+                    banner.with_size(4096).url,
                     description=f"{user.name}'s banner",
                 )
             ),

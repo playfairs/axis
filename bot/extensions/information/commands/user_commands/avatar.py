@@ -20,7 +20,6 @@
 from discord import app_commands
 
 from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, discord
-from bot.handlers.missing_avatar import get_avatar
 
 
 class AvatarView(discord.ui.LayoutView):
@@ -31,7 +30,7 @@ class AvatarView(discord.ui.LayoutView):
             discord.ui.Separator(),
             discord.ui.MediaGallery(
                 discord.MediaGalleryItem(
-                    get_avatar(user).url,
+                    user.display_avatar.with_size(4096).url,
                     description=f"{user.name}'s avatar",
                 )
             ),
