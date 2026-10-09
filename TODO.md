@@ -122,3 +122,6 @@ Module: `bot.extensions.owner.commands.*`
 
 - `poll <question> <options...>` - Create a poll with multiple choices
 - `remind <duration> <message>` - Send the command invoker a reminder
+- `steal emoji` - steal a single emoji
+- `steal emojis` - steal more than one emoji
+- `steal sticker` - Ok
