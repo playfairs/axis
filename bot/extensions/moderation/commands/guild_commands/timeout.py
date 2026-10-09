@@ -95,7 +95,7 @@ def _parse_duration_and_reason(
         return timedelta(minutes=5), value
 
     duration = _parse_duration(match.group("duration"))
-    reason = match.group("reason").strip() or None
+    reason = (match.group("reason") or "").strip() or None
     return duration, reason
 
 
