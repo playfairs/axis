@@ -11,7 +11,6 @@ from bot.extensions.moderation._checks import (
     description="Change or reset a member's nickname in this server.",
 )
 @commands.guild_only()
-@commands.has_guild_permissions(manage_nicknames=True)
 @commands.bot_has_guild_permissions(manage_nicknames=True)
 async def nick(
     ctx: commands.Context,
@@ -19,10 +18,27 @@ async def nick(
     *,
     nickname: str | None = None,
 ) -> None:
-    error = moderation_target_error(ctx, member)
-    if error is not None:
-        await send_moderation_error(ctx, error)
+    if not isinstance(ctx.author, discord.Member):
+        await send_moderation_error(ctx, "Your server role couldn't be verified.")
         return
+
+    is_self = member.id == ctx.author.id
+    permissions = ctx.author.guild_permissions
+    if not permissions.manage_nicknames and not (
+        is_self and permissions.change_nickname
+    ):
+        await send_moderation_error(
+            ctx,
+            "You need the Change Nickname permission to change your own nickname, "
+            "or the Manage Nicknames permission to change another member's.",
+        )
+        return
+
+    if not is_self:
+        error = moderation_target_error(ctx, member)
+        if error is not None:
+            await send_moderation_error(ctx, error)
+            return
 
     nickname = nickname.strip() if nickname and nickname.strip() else None
     if nickname is not None and len(nickname) > 32:
