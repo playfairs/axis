@@ -2,6 +2,7 @@ discord.py
 asyncpg
 cffi
 jishaku
+jmespath
 python-dotenv
 psutil
 rapidfuzz

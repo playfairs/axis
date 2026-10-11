@@ -6,6 +6,10 @@ from rapidfuzz import process
 from bot.base.imports import DEFAULT_CONTAINER_COLOR, app_commands, commands
 from bot.core.client.help import help_command
 from bot.errors.handlers import roles as role_error_handler
+from bot.errors.handlers.missing_permissions import (
+    send_bot_missing_permissions,
+    send_missing_permissions,
+)
 from bot.extensions.information.commands.guild_commands.role_info import (
     role_info as role_info_command,
 )
@@ -426,10 +430,7 @@ async def _check_role_editable(
 
     bot_member = ctx.guild.me
     if bot_member is None or not bot_member.guild_permissions.manage_roles:
-        await _send_message(
-            ctx,
-            "The bot is missing the required permissions to do that: `Manage Roles`",
-        )
+        await send_bot_missing_permissions(ctx, ["manage_roles"])
         return False
     if target >= bot_member.top_role:
         await _handle_role_error(ctx, role_error_handler.BotRoleHierarchyError())
@@ -454,11 +455,7 @@ async def _assign_role_to_matching_members(
         return
     missing_permissions = _missing_role_permissions(ctx.author, target)
     if missing_permissions:
-        missing = ", ".join(missing_permissions)
-        await _send_message(
-            ctx,
-            f"You are missing the required permissions to do that: `{missing}`",
-        )
+        await send_missing_permissions(ctx, missing_permissions)
         return
 
     assigned = 0
@@ -603,7 +600,12 @@ async def role_create(
         return
     permissions = discord.Permissions(permissions_value)
     if not permissions.is_subset(ctx.author.guild_permissions):
-        await _send_message(ctx, "You can only create roles with permissions you have.")
+        missing_permissions = [
+            permission
+            for permission, enabled in permissions
+            if enabled and not getattr(ctx.author.guild_permissions, permission)
+        ]
+        await send_missing_permissions(ctx, missing_permissions)
         return
 
     if not name or len(name) > 100:
@@ -677,18 +679,11 @@ async def _edit_member_role(
 
     missing_permissions = _missing_role_permissions(ctx.author, target)
     if missing_permissions:
-        missing = ", ".join(missing_permissions)
-        await _send_message(
-            ctx,
-            f"You are missing the required permissions to do that: `{missing}`",
-        )
+        await send_missing_permissions(ctx, missing_permissions)
         return
 
     if bot_member is None or not bot_member.guild_permissions.manage_roles:
-        await _send_message(
-            ctx,
-            "The bot is missing the required permissions to do that: `Manage Roles`",
-        )
+        await send_bot_missing_permissions(ctx, ["manage_roles"])
         return
     if target.is_default():
         await _send_message(ctx, "The @everyone role can't be assigned or removed.")

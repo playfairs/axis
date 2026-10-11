@@ -26,6 +26,7 @@ from bot.base.database import initialize_database
 from bot.base.imports import (
     DEFAULT_CONTAINER_COLOR,
     DEFAULT_CONTAINER_COLOR_DEV,
+    app_commands,
     commands,
     discord,
     logger,
@@ -40,6 +41,14 @@ from bot.events.listeners.invite import (
 )
 from bot.events.listeners.nickknock import on_message as handle_nickknock_message
 from bot.events.listeners.usage import on_command_completion as track_command_usage
+from bot.errors.handlers.owner_only import (
+    handle_owner_only_app_command_error,
+    handle_owner_only_command_error,
+)
+from bot.errors.handlers.missing_permissions import (
+    handle_missing_permissions_app_command_error,
+    handle_missing_permissions_command_error,
+)
 from bot.errors.handlers.roles import handle_role_error
 from bot.extensions.moderation.timeouts import timeout_renewal_loop
 from bot.logging.setup import Logger
@@ -58,6 +67,8 @@ class Axis(commands.Bot):
             owner_ids=config.owner_ids,
             help_command=None,
         )
+        self._default_app_command_error_handler = self.tree.on_error
+        self.tree.on_error = self._handle_app_command_error
         self.config = config
         self.database_url = database_url
         self.database_pool: asyncpg.Pool | None = None
@@ -176,7 +187,13 @@ class Axis(commands.Bot):
         ctx: commands.Context,
         error: commands.CommandError,
     ) -> None:
+        if await handle_missing_permissions_command_error(ctx, error):
+            return
+
         if await handle_role_error(ctx, error):
+            return
+
+        if await handle_owner_only_command_error(ctx, error):
             return
 
         command = ctx.command or ctx.invoked_with
@@ -251,6 +268,18 @@ class Axis(commands.Bot):
             )
         else:
             logger.log(getattr(logging, level.upper()), box)
+
+    async def _handle_app_command_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError,
+    ) -> None:
+        if await handle_owner_only_app_command_error(interaction, error):
+            return
+        if await handle_missing_permissions_app_command_error(interaction, error):
+            return
+
+        await self._default_app_command_error_handler(interaction, error)
 
     async def on_ready(self) -> None:
         if self.user is not None:

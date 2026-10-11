@@ -64,20 +64,11 @@ async def handle_role_error(
 
     if isinstance(cause, RoleCommandError):
         await send_role_message(ctx, str(cause))
-    elif isinstance(cause, commands.BotMissingPermissions):
-        missing = ", ".join(
-            _permission_name(permission) for permission in cause.missing_permissions
-        )
-        await send_role_message(
-            ctx, f"The bot is missing the required permissions to do that: `{missing}`"
-        )
-    elif isinstance(cause, commands.MissingPermissions):
-        missing = ", ".join(
-            _permission_name(permission) for permission in cause.missing_permissions
-        )
-        await send_role_message(
-            ctx, f"You are missing the required permissions to do that: `{missing}`"
-        )
+    elif isinstance(
+        cause,
+        (commands.BotMissingPermissions, commands.MissingPermissions),
+    ):
+        return False
     elif isinstance(cause, commands.NoPrivateMessage):
         await send_role_message(ctx, "Role commands can only be used in a server.")
     elif isinstance(cause, commands.MissingRequiredArgument):
@@ -116,7 +107,3 @@ async def handle_role_error(
         )
 
     return True
-
-
-def _permission_name(permission: str) -> str:
-    return permission.replace("_", " ").title()

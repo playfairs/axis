@@ -1,5 +1,4 @@
 import io
-import os
 import re
 from collections.abc import Mapping
 from typing import Any
@@ -16,7 +15,7 @@ TIKTOK_URL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 TIKWM_API_URL = "https://tikwm.com/api/"
-TIKTOK_PROFILE_API_URL = os.getenv("TIKTOK_PROFILE_API_URL")
+TIKTOK_PROFILE_API_URL = "https://tiktok-user-info-api.onrender.com/api/user/{user}"
 MAX_VIDEO_BYTES = 25 * 1024 * 1024
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=30)
 
@@ -56,6 +55,10 @@ async def _request_json(
             if response.status != 200:
                 raise TikTokAPIError(f"The service returned HTTP {response.status}.")
             payload = await response.json()
+    except aiohttp.ClientConnectorDNSError as error:
+        raise TikTokAPIError(
+            "The service hostname could not be resolved; check its DNS configuration."
+        ) from error
     except (aiohttp.ClientError, TimeoutError, ValueError) as error:
         raise TikTokAPIError("The TikTok service could not be reached.") from error
 
@@ -144,14 +147,15 @@ def _video_view(
 
     view = discord.ui.LayoutView()
     view.add_item(
+        discord.ui.MediaGallery(
+            discord.MediaGalleryItem(
+                f"attachment://{filename}",
+                description="TikTok video",
+            )
+        )
+    )
+    view.add_item(
         discord.ui.Container(
-            discord.ui.MediaGallery(
-                discord.MediaGalleryItem(
-                    f"attachment://{filename}",
-                    description="TikTok video",
-                )
-            ),
-            discord.ui.Separator(),
             discord.ui.TextDisplay(f"{creator_link}\n{description}"),
             discord.ui.Separator(),
             discord.ui.TextDisplay(stats),
@@ -190,14 +194,6 @@ async def tiktok_user(
         )
         return
 
-    if not TIKTOK_PROFILE_API_URL:
-        logger.error("TIKTOK_PROFILE_API_URL is not configured.")
-        await ctx.send(
-            "TikTok profile lookup is not configured.",
-            allowed_mentions=discord.AllowedMentions.none(),
-        )
-        return
-
     username = username.strip().removeprefix("@")
     if not username:
         await ctx.send(
@@ -206,22 +202,42 @@ async def tiktok_user(
         )
         return
 
+    await ctx.defer()
     async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
         try:
             data = await _request_json(
                 session,
-                TIKTOK_PROFILE_API_URL.format(username=quote(username, safe="")),
+                TIKTOK_PROFILE_API_URL.format(user=quote(username, safe="")),
             )
         except TikTokAPIError as error:
-            logger.warning("TikTok profile lookup failed for %s: %s", username, error)
+            cause_type = (
+                type(error.__cause__).__name__
+                if error.__cause__ is not None
+                else type(error).__name__
+            )
+            logger.warning(
+                "TikTok profile lookup failed for %s (%s): %s",
+                username,
+                cause_type,
+                error,
+            )
             await ctx.send(
                 f"Couldn't retrieve that TikTok profile: {error}",
                 allowed_mentions=discord.AllowedMentions.none(),
             )
             return
 
-    unique_id = data.get("unique_id")
-    nickname = data.get("nickname")
+    profile = data.get("data")
+    if data.get("status") != "success" or not isinstance(profile, dict):
+        logger.warning("TikTok profile lookup returned no profile for %s.", username)
+        await ctx.send(
+            "TikTok didn't return a valid profile for that username.",
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        return
+
+    unique_id = profile.get("username")
+    nickname = profile.get("nickname")
     if not isinstance(unique_id, str) or not unique_id:
         await ctx.send(
             "TikTok didn't return a valid profile for that username.",
@@ -229,7 +245,7 @@ async def tiktok_user(
         )
         return
 
-    signature = data.get("signature")
+    signature = profile.get("bio")
     description = None
     if isinstance(signature, str) and signature:
         description = "\n".join(
@@ -241,7 +257,7 @@ async def tiktok_user(
         url=f"https://www.tiktok.com/@{quote(unique_id, safe='')}",
         description=description,
     )
-    avatar_url = data.get("avatar_larger")
+    avatar_url = profile.get("avatar")
     if isinstance(avatar_url, str) and avatar_url:
         embed.set_thumbnail(url=avatar_url)
     embed.set_footer(text="tiktok.com")
@@ -249,8 +265,9 @@ async def tiktok_user(
         ("Followers", "followers"),
         ("Following", "following"),
         ("Likes", "likes"),
+        ("Videos", "videos"),
     ):
-        embed.add_field(name=label, value=f"`{_format_number(data.get(key))}`")
+        embed.add_field(name=label, value=f"`{_format_number(profile.get(key))}`")
     await ctx.send(
         embed=embed,
         allowed_mentions=discord.AllowedMentions.none(),
@@ -280,6 +297,7 @@ async def tiktok_repost(
         )
         return
 
+    await ctx.defer()
     async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
         try:
             data, video = await _fetch_video(session, url)
@@ -310,8 +328,8 @@ async def tiktok_repost(
 
 
 @tiktok.command(name="enable", description="Enable automatic TikTok reposts here.")
-@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
-@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+@app_commands.allowed_installs(guilds=True, users=False)
 @commands.guild_only()
 @commands.has_guild_permissions(manage_guild=True)
 @app_commands.guild_only()
@@ -340,6 +358,8 @@ async def tiktok_enable(ctx: commands.Context) -> None:
 
 
 @tiktok.command(name="disable", description="Disable automatic TikTok reposts here.")
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+@app_commands.allowed_installs(guilds=True, users=False)
 @commands.guild_only()
 @commands.has_guild_permissions(manage_guild=True)
 @app_commands.guild_only()
