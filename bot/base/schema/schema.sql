@@ -4,6 +4,12 @@ CREATE TABLE IF NOT EXISTS afk_users (
     afk_time BIGINT
 );
 
+CREATE TABLE IF NOT EXISTS nickknock_settings (
+    guild_id BIGINT PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    interval_seconds BIGINT NOT NULL DEFAULT 600
+);
+
 CREATE TABLE IF NOT EXISTS commands (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE

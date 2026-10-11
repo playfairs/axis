@@ -55,6 +55,7 @@ async def setup(bot: commands.Bot) -> None:
                 for command in vars(module).values()
                 if isinstance(command, commands.Command)
                 and command.callback.__module__ == module.__name__
+                and command.parent is None
             ),
             key=lambda command: command.name,
         )
@@ -62,7 +63,6 @@ async def setup(bot: commands.Bot) -> None:
             bot.add_command(command)
             registered_commands.append(command.name)
             logger.info(f"Loaded command {command.name} from {module.__name__}")
-
 
 async def teardown(bot: commands.Bot) -> None:
     for command_name in registered_commands:

@@ -38,6 +38,7 @@ from bot.events.listeners.invite import (
     on_guild_join as notify_guild_join,
     on_guild_remove as notify_guild_remove,
 )
+from bot.events.listeners.nickknock import on_message as handle_nickknock_message
 from bot.events.listeners.usage import on_command_completion as track_command_usage
 from bot.errors.handlers.roles import handle_role_error
 from bot.logging.setup import Logger
@@ -129,6 +130,7 @@ class Axis(commands.Bot):
         )
 
         await handle_afk_message(message, bot=self)
+        await handle_nickknock_message(message, database_pool=self.database_pool)
         await self.process_commands(message)
 
     async def _on_guild_join(self, guild: discord.Guild) -> None:

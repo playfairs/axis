@@ -388,8 +388,16 @@ def _single_command_example(
             arguments.append(_example_value(command, name))
     return " ".join((prefix + command.qualified_name, *arguments))
 
-
+# Hardcoded metadata for Nickknock Int, the command doesn't seem to be giving
+# any metadata, I'll prob fix this system later
 def _command_examples(command: commands.Command, prefix: str) -> list[str]:
+    if command.qualified_name == "nickknock interval":
+        return [
+            f"{prefix}nickknock interval 30seconds",
+            f"{prefix}nickknock interval 5m",
+            f"{prefix}nickknock interval 2hours",
+        ]
+
     examples = [_single_command_example(command, prefix)]
     if isinstance(command, commands.Group):
         examples.extend(
