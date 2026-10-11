@@ -41,6 +41,7 @@ from bot.events.listeners.invite import (
 from bot.events.listeners.nickknock import on_message as handle_nickknock_message
 from bot.events.listeners.usage import on_command_completion as track_command_usage
 from bot.errors.handlers.roles import handle_role_error
+from bot.extensions.moderation.timeouts import timeout_renewal_loop
 from bot.logging.setup import Logger
 
 
@@ -67,6 +68,7 @@ class Axis(commands.Bot):
         self.add_listener(self._on_guild_remove, "on_guild_remove")
         self.add_listener(track_command_usage, "on_command_completion")
         self._presence_task: asyncio.Task[None] | None = None
+        self._timeout_renewal_task: asyncio.Task[None] | None = None
         self.add_check(self._jishaku_owner_check)
 
     async def setup_hook(self) -> None:
@@ -89,16 +91,22 @@ class Axis(commands.Bot):
             await self.load_extension(extension)
             logger.info(f"Loaded extension {extension}")
 
+        self._timeout_renewal_task = asyncio.create_task(
+            timeout_renewal_loop(self)
+        )
         self._presence_task = asyncio.create_task(self._update_presence_loop())
 
     async def close(self) -> None:
-        if self._presence_task is not None:
-            self._presence_task.cancel()
+        for task in (self._timeout_renewal_task, self._presence_task):
+            if task is None:
+                continue
+            task.cancel()
             try:
-                await self._presence_task
+                await task
             except asyncio.CancelledError:
                 pass
-            self._presence_task = None
+        self._timeout_renewal_task = None
+        self._presence_task = None
         if self.database_pool is not None:
             await self.database_pool.close()
             self.database_pool = None

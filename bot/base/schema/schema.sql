@@ -4,10 +4,24 @@ CREATE TABLE IF NOT EXISTS afk_users (
     afk_time BIGINT
 );
 
+CREATE TABLE IF NOT EXISTS tiktok_reposter (
+    guild_id BIGINT PRIMARY KEY,
+    enabled BOOLEAN DEFAULT FALSE
+);
+
 CREATE TABLE IF NOT EXISTS nickknock_settings (
     guild_id BIGINT PRIMARY KEY,
     enabled BOOLEAN NOT NULL DEFAULT FALSE,
     interval_seconds BIGINT NOT NULL DEFAULT 600
+);
+
+CREATE TABLE IF NOT EXISTS extended_timeouts (
+    guild_id BIGINT NOT NULL,
+    member_id BIGINT NOT NULL,
+    end_at TIMESTAMPTZ NOT NULL,
+    next_refresh_at TIMESTAMPTZ NOT NULL,
+    reason TEXT,
+    PRIMARY KEY (guild_id, member_id)
 );
 
 CREATE TABLE IF NOT EXISTS commands (

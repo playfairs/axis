@@ -4,6 +4,7 @@ from bot.extensions.moderation._checks import (
     send_moderation_error,
     send_moderation_result,
 )
+from bot.extensions.moderation.timeouts import clear_scheduled_timeout
 
 
 @commands.command(
@@ -30,8 +31,19 @@ async def untimeout(
         await send_moderation_error(ctx, "The reason must be 400 characters or fewer.")
         return
 
+    pool = getattr(ctx.bot, "database_pool", None)
+    if pool is None:
+        raise RuntimeError("The untimeout command requires the bot's database pool.")
+
     try:
-        await member.timeout(None, reason=reason)
+        async with pool.acquire() as connection:
+            async with connection.transaction():
+                await clear_scheduled_timeout(
+                    connection,
+                    member.guild.id,
+                    member.id,
+                )
+                await member.timeout(None, reason=reason)
     except discord.HTTPException as error:
         logger.warning(
             "Could not remove timeout from member %s in guild %s (HTTP %s).",
