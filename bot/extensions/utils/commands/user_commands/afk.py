@@ -46,7 +46,10 @@ async def afk(
 
     response = f"> {ctx.author.mention}: You're now AFK"
     response += f": {reason}" if reason else "."
-    await ctx.send(view=AfkContainer(response))
+    await ctx.send(
+        view=AfkContainer(response),
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
 
 
 async def on_message(message: discord.Message, *, bot: Axis) -> None:
@@ -66,12 +69,13 @@ async def on_message(message: discord.Message, *, bot: Axis) -> None:
             message.author.id,
         )
         if afk_record is not None:
-            await message.channel.send(
+            await message.reply(
                 view=AfkContainer(
                     f"> {message.author.mention}: Welcome back, you went AFK: "
                     f"<t:{afk_record['afk_time']}:R>."
                 ),
                 delete_after=30,
+                allowed_mentions=discord.AllowedMentions.none(),
             )
 
     mentioned_ids = list(dict.fromkeys(user.id for user in message.mentions))
@@ -99,7 +103,8 @@ async def on_message(message: discord.Message, *, bot: Axis) -> None:
         notices.append(notice)
 
     if notices:
-        await message.channel.send(
+        await message.reply(
             view=AfkContainer("\n".join(notices)),
             delete_after=30,
+            allowed_mentions=discord.AllowedMentions.none(),
         )
