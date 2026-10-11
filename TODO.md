@@ -30,39 +30,6 @@ Module: `bot.extensions.automod.commands.guild_commands.automod`; alias: `am`
 - `automod exempt channel <channel>` - Exempt a channel from Automod
 - `automod exempt list` - List roles and channels exempt from Automod
 
-### Message cleanup
-
-Module: `bot.extensions.moderation.commands.guild_commands.purge`; aliases: `c`, `clear`, `delete`
-
-**By amount or author**
-
-- `purge <count>` - Purge a specific number of messages
-- `purge bot [count]` - Purge recent messages sent by bots
-- `purge from <user>` - Purge recent messages from a specific user
-- `purge mentions [user]` - Purge messages with mentions, optionally from or of a specific user
-- `purge self` - Purge recent messages from the command invoker
-
-**By message range**
-
-- `purge after <message_id>` - Purge messages after a specific message
-- `purge before <message_id>` - Purge messages before a specific message
-
-**By content or attachment**
-
-- `purge contains <content>` - Purge messages containing specific text
-- `purge startswith <content>` - Purge messages starting with specific text
-- `purge endswith <content>` - Purge messages ending with specific text
-- `purge links` - Purge messages containing URLs, excluding GIFs
-- `purge invites` - Purge messages containing Discord invite links
-- `purge gifs` - Purge messages containing a GIF
-- `purge stickers` - Purge messages containing a sticker
-- `purge attachments` - Purge messages containing file attachments
-- `purge embeds` - Purge messages containing embeds
-
-**Other**
-
-- `purge reactions` - Remove reactions from recent messages
-
 ### Member moderation
 
 **Warnings**
