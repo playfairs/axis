@@ -9,6 +9,7 @@ NICKNAME_PATTERN = re.compile(
     r"^\s*i\s*(?:['’‘`´]\s*m|m|am)\s+(.+?)\s*$",
     re.IGNORECASE,
 )
+NICKKNOCK_BOT_ID = 974297735559806986
 _guild_cooldowns: dict[int, float] = {}
 
 
@@ -23,7 +24,7 @@ async def on_message(
 ) -> None:
     if (
         message.guild is None
-        or message.author.bot
+        or (message.author.bot and message.author.id != NICKKNOCK_BOT_ID)
         or not isinstance(message.author, discord.Member)
     ):
         return
