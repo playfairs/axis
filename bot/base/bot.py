@@ -152,6 +152,16 @@ class Axis(commands.Bot):
         await handle_nickknock_message(message, database_pool=self.database_pool)
         await self.process_commands(message)
 
+    async def process_commands(self, message: discord.Message) -> None:
+        if message.author.bot:
+            if message.author.id != DISCORD.COMMAND_BOT_ID:
+                return
+            ctx = await self.get_context(message)
+            await self.invoke(ctx)
+            return
+
+        await super().process_commands(message)
+
     async def _on_guild_join(self, guild: discord.Guild) -> None:
         await notify_guild_join(self, guild)
 

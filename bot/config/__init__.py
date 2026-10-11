@@ -5,6 +5,7 @@ class DISCORD:
     PREFIX = ","
     PREFIXES = (PREFIX, "!", ";")
     DEV_BOT_ID = 1556469179274625124
+    COMMAND_BOT_ID = 974297735559806986
     PREFIX_OVERRIDES: ClassVar[dict[int, tuple[str, ...]]] = {DEV_BOT_ID: ("-",)}
     OWNER_IDS = frozenset({1426711359059394662, 816725924959354890})
 
