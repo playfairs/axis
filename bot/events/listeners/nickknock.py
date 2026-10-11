@@ -58,7 +58,10 @@ async def on_message(
     cooldown_expires = now + settings["interval_seconds"]
     _guild_cooldowns[message.guild.id] = cooldown_expires
     try:
-        await message.reply(f"Hi {nickname}")
+        await message.reply(
+            f"Hi {nickname}",
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
     except discord.HTTPException as error:
         if _guild_cooldowns.get(message.guild.id) == cooldown_expires:
             del _guild_cooldowns[message.guild.id]

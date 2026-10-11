@@ -3,7 +3,7 @@ import re
 import asyncpg
 from discord import app_commands
 
-from bot.base.imports import commands
+from bot.base.imports import commands, discord
 from bot.events.listeners.nickknock import reset_guild_cooldown
 
 MAX_INTERVAL_SECONDS = 2**63 - 1
@@ -98,7 +98,8 @@ def _interval_response(interval_seconds: int) -> str:
 async def nickknock(ctx: commands.Context) -> None:
     await ctx.send(
         "Use `nickknock enable`, `nickknock disable`, or "
-        "`nickknock interval <number><unit>`."
+        "`nickknock interval <number><unit>`.",
+        allowed_mentions=discord.AllowedMentions.none(),
     )
 
 
@@ -107,7 +108,10 @@ async def nickknock_enable(ctx: commands.Context) -> None:
     if ctx.guild is None:
         raise RuntimeError("The nickknock command must be used in a server.")
     await _set_enabled(_database_pool(ctx.bot), ctx.guild.id, True)
-    await ctx.send("Nickknock is enabled in this server.")
+    await ctx.send(
+        "Nickknock is enabled in this server.",
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
 
 
 @nickknock.command(name="disable", description="Disable nickname knocking.")
@@ -115,7 +119,10 @@ async def nickknock_disable(ctx: commands.Context) -> None:
     if ctx.guild is None:
         raise RuntimeError("The nickknock command must be used in a server.")
     await _set_enabled(_database_pool(ctx.bot), ctx.guild.id, False)
-    await ctx.send("Nickknock is disabled in this server.")
+    await ctx.send(
+        "Nickknock is disabled in this server.",
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
 
 
 @nickknock.command(
@@ -144,7 +151,10 @@ async def nickknock_interval(
 
     if unit is not None:
         if unit not in UNIT_SECONDS:
-            await ctx.send("Choose Seconds, Minutes, or Hours.")
+            await ctx.send(
+                "Choose Seconds, Minutes, or Hours.",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
             return
         try:
             amount = int(value)
@@ -162,8 +172,12 @@ async def nickknock_interval(
 
     if interval_seconds is None:
         await ctx.send(
-            "Use a positive interval such as `30s`, `5minutes`, or `2h`."
+            "Use a positive interval such as `30s`, `5minutes`, or `2h`.",
+            allowed_mentions=discord.AllowedMentions.none(),
         )
         return
     await _set_interval(_database_pool(ctx.bot), ctx.guild.id, interval_seconds)
-    await ctx.send(_interval_response(interval_seconds))
+    await ctx.send(
+        _interval_response(interval_seconds),
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
