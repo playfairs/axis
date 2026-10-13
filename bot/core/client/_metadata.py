@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import re
 from collections import defaultdict
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, get_args, get_origin
@@ -8,9 +9,83 @@ from typing import TYPE_CHECKING, get_args, get_origin
 from bot.base.imports import commands
 
 EXAMPLE_USER_ID = "1426711359059394662"
-EXAMPLE_USER_NAME = "playfairs"
 EXAMPLE_SNOWFLAKE_ID = "1234567890123456789"
-USER_TARGET_ARGUMENTS = frozenset({"member", "user", "user_id"})
+EXAMPLE_ARGUMENT_VALUES = {
+    "member": (EXAMPLE_USER_ID, "example_user"),
+    "user": (EXAMPLE_USER_ID, "example_member"),
+    "user_id": (EXAMPLE_USER_ID,),
+    "target": ("Example Role",),
+    "role": ("Example Role",),
+    "role_input": ("Example Role",),
+    "name": ("example-name",),
+    "new_name": ("example-name",),
+    "nickname": ("example-name",),
+    "username": ("example-user",),
+    "command_name": ("example-command",),
+    "perms": ("8",),
+    "permissions": ("8",),
+    "color": (
+        "Purple",
+        "purple",
+        "0xC4A7E7",
+        "#C4A7E7",
+        "C4A7E7",
+        "CAE",
+    ),
+    "colour": (
+        "Purple",
+        "purple",
+        "0xC4A7E7",
+        "#C4A7E7",
+        "C4A7E7",
+        "CAE",
+    ),
+    "target_or_name": ("#general",),
+}
+EXAMPLE_TYPE_VALUES = {
+    str: ("example",),
+    int: ("1",),
+    float: ("1.5",),
+    bool: ("true",),
+}
+TRANSFORMER_TYPE_VALUES = {
+    "string": EXAMPLE_TYPE_VALUES[str],
+    "integer": EXAMPLE_TYPE_VALUES[int],
+    "number": EXAMPLE_TYPE_VALUES[float],
+    "boolean": EXAMPLE_TYPE_VALUES[bool],
+}
+CONVERTER_LABELS = {
+    "RoleConverter": "Role",
+    "MemberConverter": "Member",
+    "UserConverter": "User",
+    "GuildConverter": "Server",
+    "TextChannelConverter": "Text channel",
+    "VoiceChannelConverter": "Voice channel",
+    "CategoryChannelConverter": "Category",
+    "ColourConverter": "Color",
+    "ColorConverter": "Color",
+    "InviteConverter": "Invite",
+    "EmojiConverter": "Emoji",
+    "PartialEmojiConverter": "Emoji",
+}
+CONVERTER_EXAMPLE_VALUES = {
+    "RoleConverter": ("Example Role",),
+    "MemberConverter": (EXAMPLE_USER_ID, "example-user"),
+    "UserConverter": (EXAMPLE_USER_ID, "example-user"),
+    "GuildConverter": ("Example Server",),
+    "TextChannelConverter": ("#general",),
+    "VoiceChannelConverter": ("Example Voice Channel",),
+    "CategoryChannelConverter": ("Example Category",),
+}
+ANNOTATION_EXAMPLE_VALUES = {
+    "Role": ("Example Role",),
+    "Member": (EXAMPLE_USER_ID, "example-user"),
+    "User": (EXAMPLE_USER_ID, "example-user"),
+    "Guild": ("Example Server",),
+    "TextChannel": ("#general",),
+    "VoiceChannel": ("Example Voice Channel",),
+    "CategoryChannel": ("Example Category",),
+}
 __all__ = (
     "_category_name",
     "_command_examples",
@@ -144,29 +219,18 @@ def _parameter_details(command: commands.Command) -> list[str]:
         line = f"`{name}` — {status}, {type_name}"
         if not parameter.required:
             line += f"; default: `{parameter.default}`"
+        choices = _parameter_choices(command, name)
+        if choices:
+            line += f"; choices: {', '.join(f'`{choice}`' for choice in choices)}"
         parameters.append(line)
     return parameters
 
 
 def _parameter_type_name(annotation: object, converter: object) -> str:
-    converter_labels = {
-        "RoleConverter": "Role",
-        "MemberConverter": "Member",
-        "UserConverter": "User",
-        "GuildConverter": "Server",
-        "TextChannelConverter": "Text channel",
-        "VoiceChannelConverter": "Voice channel",
-        "CategoryChannelConverter": "Category",
-        "ColourConverter": "Color",
-        "ColorConverter": "Color",
-        "InviteConverter": "Invite",
-        "EmojiConverter": "Emoji",
-        "PartialEmojiConverter": "Emoji",
-    }
     if isinstance(converter, type):
         for base in converter.__mro__:
-            if base.__name__ in converter_labels:
-                return converter_labels[base.__name__]
+            if base.__name__ in CONVERTER_LABELS:
+                return CONVERTER_LABELS[base.__name__]
 
     if annotation is inspect.Parameter.empty:
         return "value"
@@ -236,55 +300,118 @@ def _command_suggestion(
     )
 
 
-def _example_value(command: commands.Command, name: str) -> str:
+def _application_parameter(command: commands.Command, name: str) -> object | None:
+    app_command = getattr(command, "app_command", None)
+    parameters = getattr(app_command, "parameters", ())
+    return next(
+        (parameter for parameter in parameters if parameter.name == name),
+        None,
+    )
+
+
+def _parameter_choices(command: commands.Command, name: str) -> tuple[str, ...]:
+    parameter = _application_parameter(command, name)
+    choices = getattr(parameter, "choices", ())
+    return tuple(str(choice.value) for choice in choices)
+
+
+def _description_examples(description: str) -> tuple[str, ...]:
+    code_examples = re.findall(r"`([^`]+)`", description)
+    if code_examples:
+        return tuple(code_examples)
+
+    examples = re.search(
+        r"\bsuch as\s+(.+?)(?:[.;]|$)",
+        description,
+        re.IGNORECASE,
+    )
+    if examples is None:
+        return ()
+    return tuple(
+        value.strip(" `\"'")
+        for value in re.split(r",\s*(?:or\s+)?|\s+or\s+", examples.group(1))
+        if value.strip(" `\"'")
+    )
+
+
+def _parameter_examples(
+    command: commands.Command,
+    name: str,
+) -> tuple[str, ...]:
+    app_parameter = _application_parameter(command, name)
+    description = getattr(app_parameter, "description", "")
+    documented_examples = _description_examples(description)
+    if documented_examples:
+        return documented_examples
+
+    choices = _parameter_choices(command, name)
+    if choices:
+        return choices
+
     normalized = name.casefold()
-    if normalized in {"member", "user"}:
-        return EXAMPLE_USER_ID
-    if normalized in {"target", "role", "role_input"}:
-        return "Swag"
-    if normalized == "user_id":
-        return EXAMPLE_USER_ID
+    if normalized in EXAMPLE_ARGUMENT_VALUES:
+        return EXAMPLE_ARGUMENT_VALUES[normalized]
     if normalized == "id" or normalized.endswith("_id"):
-        return EXAMPLE_SNOWFLAKE_ID
-    if normalized == "target_or_name":
-        return "#general"
-    if normalized in {"name", "new_name"}:
-        return "amazing-name"
-    if normalized in {"color", "colour"}:
-        return "Purple"
-    if normalized == "username":
-        return EXAMPLE_USER_NAME
-    if normalized == "command_name":
-        return "role create"
+        return (EXAMPLE_SNOWFLAKE_ID,)
+
     parameter = command.clean_params.get(name)
-    if parameter is not None and not parameter.required:
-        return str(parameter.default)
-    return "example"
+    if parameter is not None:
+        converter = parameter.converter
+        for base in getattr(converter, "__mro__", ()):
+            if base.__name__ in CONVERTER_EXAMPLE_VALUES:
+                return CONVERTER_EXAMPLE_VALUES[base.__name__]
+
+        annotation = parameter.annotation
+        if annotation is not inspect.Parameter.empty:
+            origin = get_origin(annotation)
+            annotation_types = (
+                get_args(annotation) if origin is not None else (annotation,)
+            )
+            for annotation_type in annotation_types:
+                transformed_type = getattr(annotation_type, "type", None)
+                transformer_examples = TRANSFORMER_TYPE_VALUES.get(
+                    getattr(transformed_type, "name", "")
+                )
+                if transformer_examples is not None:
+                    return transformer_examples
+                if isinstance(annotation_type, type):
+                    examples = ANNOTATION_EXAMPLE_VALUES.get(
+                        annotation_type.__name__
+                    )
+                    if examples is not None:
+                        return examples
+                if annotation_type in EXAMPLE_TYPE_VALUES:
+                    return EXAMPLE_TYPE_VALUES[annotation_type]
+        if not parameter.required and parameter.default is not None:
+            return (str(parameter.default),)
+    return ("example",)
+
+
+def _example_value(command: commands.Command, name: str) -> str:
+    return _parameter_examples(command, name)[0]
 
 
 def _single_command_example(
     command: commands.Command,
     prefix: str,
     *,
-    user_target: str | None = None,
+    values: dict[str, str] | None = None,
+    through_parameter: int | None = None,
 ) -> str:
     arguments: list[str] = []
-    for name, parameter in command.clean_params.items():
-        if name.casefold() in USER_TARGET_ARGUMENTS and user_target is not None:
-            arguments.append(user_target)
-        elif parameter.required:
-            arguments.append(_example_value(command, name))
+    for index, (name, parameter) in enumerate(command.clean_params.items()):
+        if through_parameter is not None and index > through_parameter:
+            break
+        if parameter.required or through_parameter is not None:
+            arguments.append(
+                values.get(name, _example_value(command, name))
+                if values is not None
+                else _example_value(command, name)
+            )
     return " ".join((prefix + command.qualified_name, *arguments))
 
 
 def _command_examples(command: commands.Command, prefix: str) -> list[str]:
-    if command.qualified_name == "nickknock interval":
-        return [
-            f"{prefix}nickknock interval 30seconds",
-            f"{prefix}nickknock interval 5m",
-            f"{prefix}nickknock interval 2hours",
-        ]
-
     examples = [_single_command_example(command, prefix)]
     if isinstance(command, commands.Group):
         examples.extend(
@@ -295,32 +422,26 @@ def _command_examples(command: commands.Command, prefix: str) -> list[str]:
             )
             for example in _command_examples(child, prefix)
         )
-    elif command.qualified_name == "role create":
-        examples.extend(
-            (
-                f"{prefix}role create moderators perms=8",
-                f"{prefix}role create pastel color=yellow",
-                f"{prefix}role create pastel perms=8 color=C4A7E7",
-                f"{prefix}role create pastel perms=8 color=#C4A7E7",
-                f"{prefix}role create pastel perms=8 color=0xC4A7E7",
-                f"{prefix}role create pastel perms=8 color=CAE",
-                f"{prefix}role create pastel perms=8 color=Purple",
-                f"{prefix}role create pastel perms=8 color=purple",
-            )
-        )
-    elif any(
-        name.casefold() in USER_TARGET_ARGUMENTS
-        for name in command.clean_params
-    ):
-        examples.extend(
-            _single_command_example(command, prefix, user_target=user_target)
-            for user_target in (EXAMPLE_USER_ID, EXAMPLE_USER_NAME)
-        )
-    elif any(not parameter.required for parameter in command.clean_params.values()):
-        arguments = [
-            _example_value(command, name)
-            for name, parameter in command.clean_params.items()
-            if parameter.required or parameter.default is not None
-        ]
-        examples.append(" ".join((prefix + command.qualified_name, *arguments)))
+
+    parameters = list(command.clean_params.items())
+    for index, (name, parameter) in enumerate(parameters):
+        values = _parameter_examples(command, name)
+        if parameter.required:
+            for value in values[1:]:
+                examples.append(
+                    _single_command_example(command, prefix, values={name: value})
+                )
+        else:
+            if _parameter_choices(command, name):
+                continue
+            for value in values:
+                examples.append(
+                    _single_command_example(
+                        command,
+                        prefix,
+                        values={name: value},
+                        through_parameter=index,
+                    )
+                )
+
     return list(dict.fromkeys(examples))
