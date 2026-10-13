@@ -7,3 +7,4 @@ python-dotenv
 psutil
 rapidfuzz
 Pillow
+dishcord @ git+https://github.com/playfairs/dishcord.git

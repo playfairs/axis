@@ -25,9 +25,11 @@ from pkgutil import walk_packages
 from types import ModuleType
 
 from bot.base.imports import commands, logger
+from dishcord import DiscordShell
 
 COMMANDS_PACKAGE = "bot.extensions.owner.commands"
 registered_commands: list[str] = []
+registered_cogs: list[str] = []
 
 
 def _command_modules() -> list[ModuleType]:
@@ -60,8 +62,16 @@ async def setup(bot: commands.Bot) -> None:
             registered_commands.append(command.name)
             logger.info(f"Loaded command {command.name} from {module.__name__}")
 
+    shell_cog = DiscordShell(bot, owner_ids=bot.owner_ids)
+    await bot.add_cog(shell_cog)
+    registered_cogs.append(shell_cog.qualified_name)
+    logger.info("Loaded Dishcord shell")
+
 
 async def teardown(bot: commands.Bot) -> None:
     for command_name in registered_commands:
         bot.remove_command(command_name)
     registered_commands.clear()
+    for cog_name in registered_cogs:
+        await bot.remove_cog(cog_name)
+    registered_cogs.clear()
