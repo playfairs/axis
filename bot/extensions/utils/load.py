@@ -27,9 +27,7 @@ from types import ModuleType
 from bot.base.imports import commands, logger
 
 COMMANDS_PACKAGE = "bot.extensions.utils.commands"
-DISABLED_COMMAND_MODULES = frozenset(
-    {"bot.extensions.utils.commands.user_commands.define"}
-)
+DISABLED_COMMAND_MODULES = frozenset()
 registered_commands: list[str] = []
 
 
