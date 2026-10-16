@@ -9,3 +9,6 @@ __pycache__/
 *.py[cod]
 .ruff_cache
 *.log
+.cache/
+.local/
+uv
