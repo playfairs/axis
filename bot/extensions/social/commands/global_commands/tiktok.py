@@ -21,7 +21,9 @@ REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=30)
 
 
 class TikTokAPIError(Exception):
-    pass
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def _database_pool(bot: commands.Bot) -> asyncpg.Pool:
@@ -53,7 +55,10 @@ async def _request_json(
     try:
         async with session.get(url, params=params) as response:
             if response.status != 200:
-                raise TikTokAPIError(f"The service returned HTTP {response.status}.")
+                raise TikTokAPIError(
+                    f"The service returned HTTP {response.status}.",
+                    status_code=response.status,
+                )
             payload = await response.json()
     except aiohttp.ClientConnectorDNSError as error:
         raise TikTokAPIError(
@@ -222,7 +227,12 @@ async def tiktok_user(
                 error,
             )
             await ctx.send(
-                f"Couldn't retrieve that TikTok profile: {error}",
+                (
+                    "The TikTok user API is unavailable or no longer exists and "
+                    "needs to be changed."
+                    if error.status_code == 404
+                    else f"Couldn't retrieve that TikTok profile: {error}"
+                ),
                 allowed_mentions=discord.AllowedMentions.none(),
             )
             return
