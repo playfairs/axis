@@ -1,7 +1,7 @@
 Privacy Policy
 ===================
 
-Effective date: 4 October 2026
+Effective date: 23 October 2026
 
 This policy describes information processed by the Axis Discord bot ("Axis"
 or the "Bot") as implemented in this repository. Each person or organization
@@ -29,6 +29,8 @@ and which commands are used, this may include:
   commands;
 * Discord user, guild, and channel identifiers, used in command processing
   and operational logs;
+* per-server message totals for human users, stored as aggregate counts without
+  message content, to provide the ``messages`` command;
 * Discord profile, member, role, channel, and server information requested
   by a command; and
 * information returned by Discord when the Bot performs an action requested
@@ -44,10 +46,13 @@ How information is used
 
 Information is processed to detect and respond to commands, provide the
 requested features, perform authorized server-management actions, and
-diagnose operational errors. The current application code does not write
-user or server records to a persistent application database. Information
-needed while a command runs may be held temporarily in process memory or in
-the Discord library's runtime cache.
+diagnose operational errors. The application stores command usage records,
+moderation-log settings, timeout schedules, and per-server aggregate message
+counts in its database. Message counts are keyed by guild and user identifiers;
+message content is not stored for this feature. Counts begin when the feature is
+deployed and do not include earlier messages. Information needed while a
+command runs may also be held temporarily in process memory or in the Discord
+library's runtime cache.
 
 Operational logs
 ----------------
@@ -86,11 +91,10 @@ does not sell personal information.
 Retention and requests
 ----------------------
 
-Command data is generally processed to produce a response and is not written
-to a persistent application database by the current code. Operational log
-entries remain in the operator's local log file until the operator removes
-or rotates them. Discord and third-party providers may retain information
-under their own policies.
+Aggregate message counts and other application database records remain until
+the instance operator removes them. Operational log entries remain in the
+operator's local log file until the operator removes or rotates them. Discord
+and third-party providers may retain information under their own policies.
 
 For questions, access, or deletion requests concerning a running instance,
 contact that instance's operator. The operator is best placed to identify
