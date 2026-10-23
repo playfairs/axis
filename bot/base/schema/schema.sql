@@ -59,3 +59,10 @@ CREATE INDEX IF NOT EXISTS command_usage_guild_command_idx
 
 CREATE INDEX IF NOT EXISTS command_usage_command_idx
     ON command_usage (command_id);
+
+CREATE TABLE IF NOT EXISTS message_counts (
+    guild_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    message_count BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, user_id)
+);

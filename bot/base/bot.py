@@ -41,6 +41,7 @@ from bot.events.listeners.invite import (
     on_guild_join as notify_guild_join,
     on_guild_remove as notify_guild_remove,
 )
+from bot.events.listeners.message_counts import count_message
 from bot.events.listeners.nickknock import on_message as handle_nickknock_message
 from bot.events.listeners.usage import on_command_completion as track_command_usage
 from bot.errors.handlers.owner_only import (
@@ -161,6 +162,7 @@ class Axis(commands.Bot):
             on_message as handle_afk_message,
         )
 
+        await count_message(message, database_pool=self.database_pool)
         await handle_afk_message(message, bot=self)
         await handle_nickknock_message(message, database_pool=self.database_pool)
         await self.process_commands(message)
