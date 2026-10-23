@@ -21,7 +21,7 @@ def _resolve_command_reference(
     if not parts:
         return None, None
 
-    command = bot.get_command(parts[0])
+    command = bot.get_command(parts[0].casefold())
     alias_used = (
         parts[0]
         if command is not None and parts[0].casefold() != command.name.casefold()
@@ -30,7 +30,7 @@ def _resolve_command_reference(
     for part in parts[1:]:
         if not isinstance(command, commands.Group):
             return None, None
-        command = command.get_command(part)
+        command = command.get_command(part.casefold())
         if command is None:
             return None, None
         if part.casefold() != command.name.casefold() and alias_used is None:

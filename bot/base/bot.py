@@ -63,6 +63,7 @@ class Axis(commands.Bot):
 
         super().__init__(
             command_prefix=get_prefix,
+            case_insensitive=True,
             intents=discord.Intents.all(),
             owner_ids=config.owner_ids,
             help_command=None,

@@ -224,6 +224,18 @@ class FuzzyRoleConverter(commands.RoleConverter):
             if ctx.guild is None:
                 raise
 
+        normalized_argument = argument.casefold()
+        exact_match = next(
+            (
+                role
+                for role in ctx.guild.roles
+                if role.name.casefold() == normalized_argument
+            ),
+            None,
+        )
+        if exact_match is not None:
+            return exact_match, False
+
         if len(argument.strip()) == 1 and argument.strip().isalpha():
             raise role_error_handler.RoleCommandError(
                 "Please be more specific. Fuzzy role matching with a single letter "
