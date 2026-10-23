@@ -67,6 +67,22 @@ Shared Discord.py and Loguru imports are available from
 centrally in ``bot/logging/setup.py``; command usage and failures are logged
 with the invoking user, guild, and channel identifiers.
 
+Server administrators can configure persistent, per-server moderation logs with
+``,modlogs config``. The Components V2 panel supports individual event types,
+shared or category-specific destinations, and saves changes immediately.
+Use ``,modlogs enable`` or ``,modlogs disable`` to toggle logging without
+changing the saved configuration; ``,modlogs reset`` clears the configuration
+and leaves logging disabled.
+Detection and executor details depend on Discord's gateway data, cache, and
+the bot's View Audit Log permission; unavailable data is shown as unknown
+rather than inferred.
+
+The ``,messages`` command shows the invoking member's message count in the
+current server. Use ``,messages <member>`` for another member or
+``,messages lb`` for the top ten. Counts begin when the feature is deployed;
+Discord does not provide a way to reconstruct earlier message totals. Only
+per-server, per-user aggregate counts are stored—message content is not saved.
+
 Policies
 --------
 
