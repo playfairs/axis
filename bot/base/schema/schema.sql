@@ -15,6 +15,12 @@ CREATE TABLE IF NOT EXISTS nickknock_settings (
     interval_seconds BIGINT NOT NULL DEFAULT 600
 );
 
+CREATE TABLE IF NOT EXISTS modlog_settings (
+    guild_id BIGINT PRIMARY KEY,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS extended_timeouts (
     guild_id BIGINT NOT NULL,
     member_id BIGINT NOT NULL,

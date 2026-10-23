@@ -20,14 +20,18 @@
 # is reusable, so long as the COMMANDS_PACKAGE path
 # is changed.
 
+from collections.abc import Callable
+from functools import partial
 from importlib import import_module
 from pkgutil import walk_packages
 from types import ModuleType
+from typing import Any
 
 from bot.base.imports import commands, logger
 
 COMMANDS_PACKAGE = "bot.extensions.moderation.commands"
 registered_commands: list[str] = []
+registered_listeners: list[tuple[Callable[..., Any], str]] = []
 
 
 def _command_modules() -> list[ModuleType]:
@@ -60,8 +64,19 @@ async def setup(bot: commands.Bot) -> None:
             registered_commands.append(command.name)
             logger.info(f"Loaded command {command.name} from {module.__name__}")
 
+    from bot.events.listeners import modlogs
+
+    for event_name, listener in modlogs.listeners.items():
+        callback = partial(listener, bot)
+        bot.add_listener(callback, event_name)
+        registered_listeners.append((callback, event_name))
+        logger.info(f"Loaded {event_name} modlogs listener")
+
 
 async def teardown(bot: commands.Bot) -> None:
     for command_name in registered_commands:
         bot.remove_command(command_name)
     registered_commands.clear()
+    for listener, event_name in registered_listeners:
+        bot.remove_listener(listener, event_name)
+    registered_listeners.clear()
