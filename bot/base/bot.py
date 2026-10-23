@@ -14,9 +14,11 @@
 #
 # See the UNLICENSE file for details.
 
+from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import asyncpg
@@ -73,6 +75,7 @@ class Axis(commands.Bot):
         self.config = config
         self.database_url = database_url
         self.database_pool: asyncpg.Pool | None = None
+        self._command_responses: dict[int, _CommandResponse] = {}
         self.add_command(help_command)
         self.add_command(where_command)
         self.add_command(usage_command)
@@ -109,6 +112,15 @@ class Axis(commands.Bot):
         self._presence_task = asyncio.create_task(self._update_presence_loop())
 
     async def close(self) -> None:
+        response_tasks: set[asyncio.Task[None]] = set()
+        for response in self._command_responses.values():
+            for task in (response.expiry_task, response.delete_task):
+                if task is not None:
+                    task.cancel()
+                    response_tasks.add(task)
+        self._command_responses.clear()
+        if response_tasks:
+            await asyncio.gather(*response_tasks, return_exceptions=True)
         for task in (self._timeout_renewal_task, self._presence_task):
             if task is None:
                 continue
@@ -153,6 +165,19 @@ class Axis(commands.Bot):
         await handle_nickknock_message(message, database_pool=self.database_pool)
         await self.process_commands(message)
 
+    async def on_message_edit(
+        self,
+        before: discord.Message,
+        after: discord.Message,
+    ) -> None:
+        if (
+            before.author.bot
+            or before.content == after.content
+            or after.id not in self._command_responses
+        ):
+            return
+        await self.process_commands(after)
+
     async def process_commands(self, message: discord.Message) -> None:
         if message.author.bot:
             if message.author.id != DISCORD.COMMAND_BOT_ID:
@@ -161,7 +186,150 @@ class Axis(commands.Bot):
             await self.invoke(ctx)
             return
 
-        await super().process_commands(message)
+        ctx = await self.get_context(message, cls=AxisContext)
+        if ctx.invoked_with is None:
+            return
+        ctx._command_response = self._track_command_response(message)
+        await self.invoke(ctx)
+        if ctx._command_response is not None and not ctx._response_updated:
+            await self._clear_command_response(ctx._command_response)
+
+    def _track_command_response(
+        self,
+        message: discord.Message,
+    ) -> _CommandResponse:
+        response = self._command_responses.get(message.id)
+        if response is not None:
+            return response
+
+        response = _CommandResponse()
+        self._command_responses[message.id] = response
+        delay = max(
+            0.0,
+            20.0
+            - (discord.utils.utcnow() - message.created_at).total_seconds(),
+        )
+        response.expiry_task = asyncio.create_task(
+            self._expire_command_response(message.id, response, delay)
+        )
+        return response
+
+    async def _send_command_response(
+        self,
+        ctx: AxisContext,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> discord.Message:
+        if ctx._response_updated:
+            return await ctx._send_original(*args, **kwargs)
+
+        send_kwargs = dict(kwargs)
+        delete_after = send_kwargs.pop("delete_after", None)
+        response = ctx._command_response
+        if response is not None and response.message is not None:
+            if await self._edit_command_response(
+                response,
+                args,
+                send_kwargs,
+                delete_after,
+            ):
+                ctx._response_updated = True
+                return response.message
+
+        message = await ctx._send_original(*args, **send_kwargs)
+        if response is None:
+            response = self._track_command_response(ctx.message)
+            ctx._command_response = response
+        response.message = message
+        self._schedule_response_deletion(response, message, delete_after)
+        ctx._response_updated = True
+        return message
+
+    async def _edit_command_response(
+        self,
+        response: _CommandResponse,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+        delete_after: float | None,
+    ) -> bool:
+        message = response.message
+        if message is None:
+            return False
+
+        edit_kwargs, can_edit = _message_edit_kwargs(args, kwargs)
+        if response.delete_task is not None:
+            response.delete_task.cancel()
+            response.delete_task = None
+
+        if not can_edit:
+            await self._delete_response_message(response)
+            return False
+
+        try:
+            response.message = await message.edit(**edit_kwargs)
+        except discord.NotFound:
+            response.message = None
+            return False
+
+        self._schedule_response_deletion(response, response.message, delete_after)
+        return True
+
+    def _schedule_response_deletion(
+        self,
+        response: _CommandResponse,
+        message: discord.Message,
+        delay: float | None,
+    ) -> None:
+        if response.delete_task is not None:
+            response.delete_task.cancel()
+            response.delete_task = None
+        if delay is not None:
+            response.delete_task = asyncio.create_task(
+                self._delete_response_after(message, delay)
+            )
+
+    async def _delete_response_after(
+        self,
+        message: discord.Message,
+        delay: float,
+    ) -> None:
+        try:
+            await asyncio.sleep(delay)
+            await message.delete()
+        except asyncio.CancelledError:
+            raise
+        except discord.NotFound:
+            pass
+        except discord.HTTPException as error:
+            logger.warning(
+                "Could not delete command response in channel %s (HTTP %s).",
+                message.channel.id,
+                error.status,
+            )
+
+    async def _delete_response_message(self, response: _CommandResponse) -> None:
+        if response.delete_task is not None:
+            response.delete_task.cancel()
+            response.delete_task = None
+        if response.message is not None:
+            try:
+                await response.message.delete()
+            except discord.NotFound:
+                pass
+            response.message = None
+
+    async def _clear_command_response(self, response: _CommandResponse) -> None:
+        await self._delete_response_message(response)
+
+    async def _expire_command_response(
+        self,
+        message_id: int,
+        response: _CommandResponse,
+        delay: float,
+    ) -> None:
+        await asyncio.sleep(delay)
+        if self._command_responses.get(message_id) is response:
+            del self._command_responses[message_id]
 
     async def _on_guild_join(self, guild: discord.Guild) -> None:
         await notify_guild_join(self, guild)
@@ -304,3 +472,68 @@ class Axis(commands.Bot):
 
     async def on_error(self, event: str, *args: object, **kwargs: object) -> None:
         logger.exception(f"Unhandled error in Discord event {event}")
+
+
+@dataclass(slots=True)
+class _CommandResponse:
+    message: discord.Message | None = None
+    expiry_task: asyncio.Task[None] | None = None
+    delete_task: asyncio.Task[None] | None = None
+
+
+class AxisContext(commands.Context):
+    _command_response: _CommandResponse | None = None
+    _response_updated = False
+
+    async def send(self, *args: Any, **kwargs: Any) -> discord.Message:
+        if not isinstance(self.bot, Axis):
+            return await self._send_original(*args, **kwargs)
+        return await self.bot._send_command_response(self, args, kwargs)
+
+    async def _send_original(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> discord.Message:
+        return await super().send(*args, **kwargs)
+
+
+def _message_edit_kwargs(
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> tuple[dict[str, Any], bool]:
+    if len(args) > 1:
+        return {}, False
+
+    values = dict(kwargs)
+    content = args[0] if args else values.pop("content", None)
+    unsupported_defaults = {
+        "tts": False,
+        "file": None,
+        "files": None,
+        "stickers": None,
+        "nonce": None,
+        "reference": None,
+        "mention_author": None,
+        "ephemeral": False,
+        "silent": False,
+        "poll": None,
+    }
+    for key, default in unsupported_defaults.items():
+        if values.pop(key, default) != default:
+            return {}, False
+
+    edit_kwargs: dict[str, Any] = {
+        "content": content,
+        "attachments": [],
+        "view": values.pop("view", None),
+        "allowed_mentions": values.pop("allowed_mentions", None),
+        "suppress": values.pop("suppress_embeds", False),
+    }
+    if "embed" in values:
+        edit_kwargs["embed"] = values.pop("embed")
+    else:
+        edit_kwargs["embeds"] = values.pop("embeds", [])
+    if values:
+        return {}, False
+    return edit_kwargs, True
