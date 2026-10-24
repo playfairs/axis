@@ -10,11 +10,7 @@ async def count_message(
     *,
     database_pool: asyncpg.Pool | None,
 ) -> None:
-    if (
-        message.guild is None
-        or message.author.bot
-        or message.webhook_id is not None
-    ):
+    if message.guild is None or message.webhook_id is not None:
         return
     if database_pool is None:
         raise RuntimeError("Message counting requires the bot's database pool.")
