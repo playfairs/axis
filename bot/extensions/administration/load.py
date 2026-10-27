@@ -20,14 +20,18 @@
 # is reusable, so long as the COMMANDS_PACKAGE path
 # is changed.
 
+from functools import partial
 from importlib import import_module
 from pkgutil import walk_packages
 from types import ModuleType
+from typing import Any
 
-from bot.base.imports import commands, logger
+from bot.base.imports import commands, discord, logger
 
 COMMANDS_PACKAGE = "bot.extensions.administration.commands"
 registered_commands: list[str] = []
+registered_listeners: list[tuple[Any, str]] = []
+registered_views: list[discord.ui.View] = []
 
 
 def _command_modules() -> list[ModuleType]:
@@ -60,8 +64,25 @@ async def setup(bot: commands.Bot) -> None:
             registered_commands.append(command.name)
             logger.info(f"Loaded command {command.name} from {module.__name__}")
 
+        for event_name, listener in getattr(module, "listeners", {}).items():
+            callback = partial(listener, bot)
+            bot.add_listener(callback, event_name)
+            registered_listeners.append((callback, event_name))
+            logger.info(f"Loaded {event_name} listener from {module.__name__}")
+
+        for view in getattr(module, "persistent_views", ()):
+            bot.add_view(view)
+            registered_views.append(view)
+            logger.info(f"Loaded persistent view from {module.__name__}")
+
 
 async def teardown(bot: commands.Bot) -> None:
     for command_name in registered_commands:
         bot.remove_command(command_name)
     registered_commands.clear()
+    for listener, event_name in registered_listeners:
+        bot.remove_listener(listener, event_name)
+    registered_listeners.clear()
+    for view in registered_views:
+        view.stop()
+    registered_views.clear()

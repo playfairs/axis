@@ -34,7 +34,7 @@ async def _resolve_channel(
 @commands.group(
     name="channel",
     invoke_without_command=True,
-    description="Create, rename, and delete server channels.",
+    description="Create, rename, delete, and recreate server channels.",
 )
 async def channel(ctx: commands.Context) -> None:
     await ctx.invoke(help_command, command_name="channel")
@@ -121,6 +121,174 @@ class ChannelInfoView(discord.ui.LayoutView):
                 accent_color=DEFAULT_CONTAINER_COLOR,
             )
         )
+
+
+class NukeConfirmationControls(discord.ui.ActionRow):
+    @discord.ui.button(label="Nuke channel", style=discord.ButtonStyle.danger)
+    async def confirm(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        view = self.view
+        if not isinstance(view, NukeConfirmationView):
+            raise RuntimeError("Nuke confirmation controls are not attached correctly.")
+        await view.confirm(interaction, button)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        view = self.view
+        if not isinstance(view, NukeConfirmationView):
+            raise RuntimeError("Nuke confirmation controls are not attached correctly.")
+        await view.cancel(interaction, button)
+
+
+class NukeConfirmationView(discord.ui.LayoutView):
+    def __init__(
+        self,
+        ctx: commands.Context,
+        target: discord.TextChannel
+        | discord.VoiceChannel
+        | discord.StageChannel
+        | discord.ForumChannel,
+    ) -> None:
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.target = target
+        self.message: discord.Message | None = None
+        self.controls = NukeConfirmationControls()
+        self.add_item(
+            discord.ui.Container(
+                discord.ui.TextDisplay(
+                    f"**This permanently deletes every message in "
+                    f"{target.mention}.**\n"
+                    "I can recreate its settings, permissions, and category, "
+                    "but not its message history. Confirm to continue."
+                ),
+                discord.ui.Separator(),
+                self.controls,
+                accent_color=DEFAULT_CONTAINER_COLOR,
+            )
+        )
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message(
+                "Only the person who ran this command can confirm it.",
+                ephemeral=True,
+            )
+            return False
+        return True
+
+    async def confirm(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        button.disabled = True
+        await interaction.response.defer()
+        self.stop()
+        original_position = self.target.position
+        reason = f"Recreated by {self.ctx.author} via channel nuke command"
+        try:
+            replacement = await self.target.clone(
+                category=self.target.category,
+                reason=reason,
+            )
+        except discord.HTTPException as error:
+            logger.warning(
+                "Could not clone channel {} in guild {} ({}).",
+                self.target.id,
+                self.target.guild.id,
+                type(error).__name__,
+            )
+            await interaction.followup.send(
+                "Couldn't recreate that channel. The original channel was not "
+                "deleted; check the bot's permissions and try again.",
+                ephemeral=True,
+            )
+            return
+
+        try:
+            await self.target.delete(reason=reason)
+        except discord.HTTPException as error:
+            logger.warning(
+                "Could not delete channel {} in guild {} ({}).",
+                self.target.id,
+                self.target.guild.id,
+                type(error).__name__,
+            )
+            try:
+                await replacement.delete(
+                    reason="Cleaning up a failed channel nuke operation"
+                )
+            except discord.HTTPException:
+                logger.exception(
+                    "Could not remove replacement channel %s after the nuke of "
+                    "%s failed.",
+                    replacement.id,
+                    self.target.id,
+                )
+                await interaction.followup.send(
+                    f"Couldn't delete the original channel. The replacement "
+                    f"{replacement.mention} was created and couldn't be removed.",
+                    ephemeral=True,
+                )
+                return
+
+            await interaction.followup.send(
+                "Couldn't delete the original channel, so I removed the "
+                "replacement. The original channel is unchanged.",
+                ephemeral=True,
+            )
+            return
+
+        position_restored = True
+        try:
+            await replacement.edit(position=original_position)
+        except discord.HTTPException:
+            position_restored = False
+            logger.exception(
+                "Recreated channel %s from channel %s but could not restore its "
+                "position.",
+                replacement.id,
+                self.target.id,
+            )
+
+        message = f"Recreated {replacement.mention} with its previous channel settings."
+        if not position_restored:
+            message += " I couldn't restore its previous position."
+        message += " The old channel's messages could not be copied."
+        if interaction.channel_id == self.target.id:
+            await replacement.send("first")
+        else:
+            await interaction.followup.send(message)
+
+    async def cancel(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        button.disabled = True
+        self.stop()
+        await interaction.response.edit_message(
+            content="Channel recreation cancelled.",
+            view=self,
+        )
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+        if self.message is not None:
+            await self.message.edit(
+                content="Channel recreation confirmation expired.",
+                view=self,
+            )
 
 
 @channel.command(
@@ -331,3 +499,133 @@ async def channel_delete(
 
     if not deleting_current_channel:
         await ctx.send(f"Deleted **{channel_name}**.")
+
+
+@commands.command(
+    name="nuke",
+    description="Recreate this or another channel with the same settings.",
+)
+@commands.has_guild_permissions(administrator=True)
+@commands.bot_has_guild_permissions(administrator=True)
+@commands.guild_only()
+async def nuke(
+    ctx: commands.Context,
+    target_id: str | None = None,
+) -> None:
+    if ctx.guild is None:
+        await ctx.send("This command can only be used in a server.")
+        return
+    if target_id is None:
+        target = ctx.channel
+        if not isinstance(target, discord.abc.GuildChannel):
+            await ctx.send(
+                "This command must be run in a channel that can be recreated."
+            )
+            return
+    else:
+        try:
+            target = await _resolve_channel(ctx, target_id)
+        except discord.HTTPException as error:
+            logger.warning(
+                "Could not resolve channel {} in guild {} ({}).",
+                target_id,
+                ctx.guild.id,
+                type(error).__name__,
+            )
+            await ctx.send("Couldn't find that channel.")
+            return
+        if target is None:
+            await ctx.send("Couldn't find that channel. Use a channel mention or ID.")
+            return
+    if target.guild != ctx.guild:
+        await ctx.send("That channel isn't in this server.")
+        return
+    if not isinstance(
+        target,
+        (
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.ForumChannel,
+        ),
+    ):
+        await ctx.send(
+            "This channel type can't be recreated with the nuke command."
+        )
+        return
+
+    view = NukeConfirmationView(ctx, target)
+    view.message = await ctx.send(
+        view=view,
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
+
+
+@commands.command(
+    name="cooldown",
+    aliases=("slowmode",),
+    description="Set a channel's message cooldown in seconds.",
+)
+@commands.guild_only()
+@commands.has_guild_permissions(manage_channels=True)
+@commands.bot_has_guild_permissions(manage_channels=True)
+async def cooldown(
+    ctx: commands.Context,
+    seconds: commands.Range[int, 0, 21600],
+    target_id: str | None = None,
+) -> None:
+    if ctx.guild is None:
+        await ctx.send("This command can only be used in a server.")
+        return
+
+    if target_id is None:
+        target = ctx.channel
+    else:
+        try:
+            target = await _resolve_channel(ctx, target_id)
+        except discord.HTTPException as error:
+            logger.warning(
+                "Could not resolve channel {} in guild {} ({}).",
+                target_id,
+                ctx.guild.id,
+                type(error).__name__,
+            )
+            await ctx.send("Couldn't find that channel.")
+            return
+        if target is None:
+            await ctx.send("Couldn't find that channel. Use a channel mention or ID.")
+            return
+
+    if target.guild != ctx.guild:
+        await ctx.send("That channel isn't in this server.")
+        return
+    if not isinstance(target, (discord.TextChannel, discord.ForumChannel)):
+        await ctx.send(
+            "Cooldowns can only be set on text and forum channels."
+        )
+        return
+
+    try:
+        await target.edit(
+            slowmode_delay=seconds,
+            reason=f"Cooldown changed by {ctx.author}",
+        )
+    except discord.HTTPException as error:
+        logger.warning(
+            "Could not set cooldown for channel %s in guild %s (%s).",
+            target.id,
+            ctx.guild.id,
+            type(error).__name__,
+        )
+        await ctx.send(
+            "Couldn't change that channel's cooldown. Check the permissions "
+            "and try again."
+        )
+        return
+
+    if seconds == 0:
+        await ctx.send(f"Disabled the cooldown in {target.mention}.")
+    else:
+        await ctx.send(
+            f"Set the cooldown in {target.mention} to {seconds} second(s)."
+        )

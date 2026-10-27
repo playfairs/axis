@@ -21,6 +21,15 @@ CREATE TABLE IF NOT EXISTS modlog_settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS verification_settings (
+    guild_id BIGINT PRIMARY KEY,
+    channel_id BIGINT NOT NULL,
+    unverified_role_id BIGINT NOT NULL,
+    verified_role_id BIGINT,
+    message_id BIGINT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS extended_timeouts (
     guild_id BIGINT NOT NULL,
     member_id BIGINT NOT NULL,

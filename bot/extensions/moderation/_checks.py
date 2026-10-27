@@ -3,7 +3,7 @@ from bot.base.imports import DEFAULT_CONTAINER_COLOR, commands, discord
 
 def format_moderation_result(
     action: str,
-    target: discord.Member,
+    target: discord.Member | discord.User,
     reason: str | None,
     *,
     duration: str | None = None,
@@ -20,7 +20,7 @@ class ModerationResultView(discord.ui.LayoutView):
     def __init__(
         self,
         action: str,
-        target: discord.Member,
+        target: discord.Member | discord.User,
         reason: str | None,
         *,
         duration: str | None = None,
@@ -65,7 +65,7 @@ async def send_moderation_error(
 async def send_moderation_result(
     ctx: commands.Context,
     action: str,
-    target: discord.Member,
+    target: discord.Member | discord.User,
     reason: str | None,
     *,
     duration: str | None = None,

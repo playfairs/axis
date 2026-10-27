@@ -74,7 +74,7 @@ Questions
 For questions about a particular running instance, contact the person or
 organization that added or operates the Bot in your server. For questions
 about the Axis project, use the `Axis GitHub repository
-<https://github.com/playfairs/axis>`_.
+<https://gitlab.com/repolish/axis>`_.
 
 These terms are a general project template and are not legal advice. Each
 operator is responsible for reviewing them and ensuring they are suitable

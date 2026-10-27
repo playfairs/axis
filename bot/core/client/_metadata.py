@@ -272,7 +272,7 @@ def _description(command: commands.Command) -> str:
 
 def _source_link(module: str) -> str:
     path = module.replace(".", "/") + ".py"
-    return f"[`{module}`](<https://github.com/playfairs/axis/blob/master/{path}>)"
+    return f"[`{module}`](<https://gitlab.com/repolish/axis/blob/master/{path}>)"
 
 
 def _command_suggestion(

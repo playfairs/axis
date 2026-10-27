@@ -13,7 +13,7 @@ Open-source transparency
 -----------------------
 
 Axis is open source. Anyone can review the code in the `Axis GitHub repository
-<https://github.com/playfairs/axis>`_ to inspect how the Bot processes
+<https://gitlab.com/repolish/axis>`_ to inspect how the Bot processes
 information and assess privacy-related concerns. A running instance may have
 operator-specific configuration or modifications, so the repository may not
 fully describe every deployed instance.
@@ -100,7 +100,7 @@ For questions, access, or deletion requests concerning a running instance,
 contact that instance's operator. The operator is best placed to identify
 the applicable logs, hosting systems, and legal obligations. For information
 about the Axis source project, contact its maintainers through the `Axis
-GitHub repository <https://github.com/playfairs/axis>`_. Do not post private
+GitHub repository <https://gitlab.com/repolish/axis>`_. Do not post private
 or sensitive information in a public issue.
 
 Security and international processing

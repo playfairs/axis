@@ -345,7 +345,7 @@ class HelpView(discord.ui.LayoutView):
                     f"> Use `{prefix}h <command>` to see a command's usage, arguments, "
                     "aliases, and permissions.\n"
                     "> `<argument>` is required; `[argument]` is optional.\n\n"
-                    "**[Source Code](<https://github.com/playfairs/axis>)**"
+                    "**[Source Code](<https://gitlab.com/repolish/axis>)**"
                 )
             )
 
