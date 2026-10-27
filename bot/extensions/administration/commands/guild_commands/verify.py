@@ -1,4 +1,4 @@
-import copy
+from __future__ import annotations
 
 import asyncpg
 
@@ -24,6 +24,12 @@ def _read_only_channel_overwrite() -> discord.PermissionOverwrite:
     )
     denied = discord.Permissions.all_channel() ^ allowed
     return discord.PermissionOverwrite.from_pair(allowed, denied)
+
+
+def _copy_overwrite(
+    overwrite: discord.PermissionOverwrite,
+) -> discord.PermissionOverwrite:
+    return discord.PermissionOverwrite.from_pair(*overwrite.pair())
 
 
 async def _restore_overwrites(
@@ -63,6 +69,151 @@ async def _load_settings(
         """,
         guild_id,
     )
+
+
+async def _apply_verification_config(
+    bot: commands.Bot,
+    guild: discord.Guild,
+    actor: discord.Member,
+    channel: discord.TextChannel,
+    unverified_role: discord.Role,
+    verified_role: discord.Role | None,
+) -> str | None:
+    if channel.guild != guild or unverified_role.guild != guild:
+        return "Choose a channel and unverified role from this server."
+    if unverified_role.is_default() or unverified_role.managed:
+        return "Choose a regular, non-managed unverified role."
+    if verified_role is not None and (
+        verified_role.guild != guild
+        or verified_role.is_default()
+        or verified_role.managed
+    ):
+        return "Choose a regular, non-managed verified role from this server."
+    if verified_role == unverified_role:
+        return "The verified and unverified roles must be different."
+    if (
+        not actor.guild_permissions.manage_roles
+        or not actor.guild_permissions.manage_channels
+    ):
+        return (
+            "You need Manage Roles and Manage Channels to apply verification "
+            "settings."
+        )
+    if actor.id != guild.owner_id and any(
+        role >= actor.top_role
+        for role in (unverified_role, verified_role)
+        if role is not None
+    ):
+        return "You can only configure roles below your highest role."
+
+    bot_member = guild.me
+    if bot_member is None:
+        return "I couldn't verify my role in this server."
+    if (
+        not bot_member.guild_permissions.manage_roles
+        or not bot_member.guild_permissions.manage_channels
+    ):
+        return (
+            "I need the Manage Roles and Manage Channels permissions to apply "
+            "verification settings."
+        )
+    if any(
+        role >= bot_member.top_role
+        for role in (unverified_role, verified_role)
+        if role is not None
+    ):
+        return "Move my highest role above the verification roles, then try again."
+    channel_permissions = channel.permissions_for(bot_member)
+    if (
+        not channel_permissions.view_channel
+        or not channel_permissions.send_messages
+    ):
+        return (
+            "I need permission to view and send messages in the verification "
+            "channel."
+        )
+
+    snapshots: list[
+        tuple[
+            discord.abc.GuildChannel,
+            discord.Role,
+            discord.PermissionOverwrite,
+        ]
+    ] = []
+    panel: discord.Message | None = None
+    try:
+        for role in (guild.default_role, unverified_role):
+            snapshots.append((channel, role, channel.overwrites_for(role)))
+        await channel.set_permissions(
+            guild.default_role,
+            overwrite=_read_only_channel_overwrite(),
+            reason=f"Configured by {actor} via verify config",
+        )
+        await channel.set_permissions(
+            unverified_role,
+            overwrite=_read_only_channel_overwrite(),
+            reason=f"Configured by {actor} via verify config",
+        )
+
+        for existing_channel in guild.channels:
+            if existing_channel.id == channel.id:
+                continue
+            previous_overwrite = existing_channel.overwrites_for(unverified_role)
+            snapshots.append(
+                (existing_channel, unverified_role, _copy_overwrite(previous_overwrite))
+            )
+            unverified_overwrite = _copy_overwrite(previous_overwrite)
+            unverified_overwrite.view_channel = False
+            await existing_channel.set_permissions(
+                unverified_role,
+                overwrite=unverified_overwrite,
+                reason=f"Restricted unverified members by {actor}",
+            )
+
+        panel = await channel.send(
+            view=VerificationView(),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        await _database_pool(bot).execute(
+            """
+            INSERT INTO verification_settings (
+                guild_id, channel_id, unverified_role_id, verified_role_id,
+                message_id
+            )
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (guild_id)
+            DO UPDATE SET
+                channel_id = EXCLUDED.channel_id,
+                unverified_role_id = EXCLUDED.unverified_role_id,
+                verified_role_id = EXCLUDED.verified_role_id,
+                message_id = EXCLUDED.message_id,
+                updated_at = NOW()
+            """,
+            guild.id,
+            channel.id,
+            unverified_role.id,
+            verified_role.id if verified_role is not None else None,
+            panel.id,
+        )
+    except (discord.HTTPException, asyncpg.PostgresError) as error:
+        logger.exception(
+            "Could not apply verification settings in guild %s (%s).",
+            guild.id,
+            type(error).__name__,
+        )
+        if panel is not None:
+            try:
+                await panel.delete()
+            except discord.HTTPException:
+                logger.exception(
+                    "Could not remove the verification panel after config failed."
+                )
+        await _restore_overwrites(
+            snapshots,
+            reason="Rolling back failed verification config",
+        )
+        return "I couldn't apply those settings. Check my permissions and try again."
+    return None
 
 
 async def on_member_join(bot: commands.Bot, member: discord.Member) -> None:
@@ -204,6 +355,200 @@ class VerificationView(discord.ui.LayoutView):
         )
 
 
+class _ConfigChannelSelect(discord.ui.ChannelSelect):
+    def __init__(self, view: VerificationConfigView) -> None:
+        self.config_view = view
+        super().__init__(
+            channel_types=[discord.ChannelType.text],
+            placeholder="Choose the verification channel",
+            min_values=1,
+            max_values=1,
+            default_values=[view.channel],
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        guild = interaction.guild
+        selected = self.values[0]
+        channel = guild.get_channel(selected.id) if guild is not None else None
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message(
+                "Choose a text channel in this server.",
+                ephemeral=True,
+            )
+            return
+        self.config_view.channel = channel
+        self.default_values = [channel]
+        await self.config_view.refresh(interaction)
+
+
+class _ConfigUnverifiedRoleSelect(discord.ui.RoleSelect):
+    def __init__(self, view: VerificationConfigView) -> None:
+        self.config_view = view
+        super().__init__(
+            placeholder="Choose the unverified role",
+            min_values=1,
+            max_values=1,
+            default_values=[view.unverified_role],
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        self.config_view.unverified_role = self.values[0]
+        self.default_values = [self.values[0]]
+        await self.config_view.refresh(interaction)
+
+
+class _ConfigVerifiedRoleSelect(discord.ui.RoleSelect):
+    def __init__(self, view: VerificationConfigView) -> None:
+        self.config_view = view
+        super().__init__(
+            placeholder="Optional verified role (clear selection for none)",
+            min_values=0,
+            max_values=1,
+            required=False,
+            default_values=(
+                [view.verified_role] if view.verified_role is not None else []
+            ),
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        self.config_view.verified_role = self.values[0] if self.values else None
+        self.default_values = (
+            [self.config_view.verified_role]
+            if self.config_view.verified_role is not None
+            else []
+        )
+        await self.config_view.refresh(interaction)
+
+
+class VerificationConfigView(discord.ui.View):
+    def __init__(
+        self,
+        bot: commands.Bot,
+        guild: discord.Guild,
+        owner_id: int,
+        channel: discord.TextChannel,
+        unverified_role: discord.Role,
+        verified_role: discord.Role | None,
+    ) -> None:
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.guild = guild
+        self.owner_id = owner_id
+        self.channel = channel
+        self.unverified_role = unverified_role
+        self.verified_role = verified_role
+        self.add_item(_ConfigChannelSelect(self))
+        self.add_item(_ConfigUnverifiedRoleSelect(self))
+        self.add_item(_ConfigVerifiedRoleSelect(self))
+
+    def build_embed(self) -> discord.Embed:
+        embed = discord.Embed(
+            title="Verification Configuration",
+            description="Choose the settings for this server, then select **Apply**.",
+        )
+        embed.add_field(name="Verification channel", value=self.channel.mention)
+        embed.add_field(
+            name="Unverified role",
+            value=self.unverified_role.mention,
+        )
+        embed.add_field(
+            name="Verified role",
+            value=(
+                self.verified_role.mention
+                if self.verified_role is not None
+                else "None"
+            ),
+        )
+        return embed
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.owner_id:
+            await interaction.response.send_message(
+                "Only the person who opened this configuration can use it.",
+                ephemeral=True,
+            )
+            return False
+        if interaction.guild_id != self.guild.id:
+            await interaction.response.send_message(
+                "This configuration belongs to a different server.",
+                ephemeral=True,
+            )
+            return False
+        return True
+
+    async def refresh(self, interaction: discord.Interaction) -> None:
+        await interaction.response.edit_message(
+            embed=self.build_embed(),
+            view=self,
+        )
+
+    @discord.ui.button(
+        label="Apply",
+        style=discord.ButtonStyle.success,
+        row=3,
+    )
+    async def apply(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        button.disabled = True
+        await interaction.response.defer(ephemeral=True)
+        if not isinstance(interaction.user, discord.Member):
+            await interaction.followup.send(
+                "Your server permissions couldn't be verified.",
+                ephemeral=True,
+            )
+            return
+        error = await _apply_verification_config(
+            self.bot,
+            self.guild,
+            interaction.user,
+            self.channel,
+            self.unverified_role,
+            self.verified_role,
+        )
+        if error is not None:
+            button.disabled = False
+            await interaction.edit_original_response(view=self)
+            await interaction.followup.send(error, ephemeral=True)
+            return
+
+        self.stop()
+        embed = self.build_embed()
+        embed.description = "Verification settings applied successfully."
+        await interaction.edit_original_response(
+            embed=embed,
+            view=None,
+        )
+
+    @discord.ui.button(
+        label="Cancel",
+        style=discord.ButtonStyle.secondary,
+        row=3,
+    )
+    async def cancel(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        del button
+        self.stop()
+        await interaction.response.edit_message(
+            content="Verification configuration cancelled.",
+            embed=None,
+            view=None,
+        )
+
+    async def on_timeout(self) -> None:
+        if self.message is not None:
+            await self.message.edit(
+                content="Verification configuration expired.",
+                embed=None,
+                view=None,
+            )
+
+
 persistent_views = (VerificationView(),)
 listeners = {"on_member_join": on_member_join}
 
@@ -231,7 +576,10 @@ async def verify(ctx: commands.Context) -> None:
 )
 @app_commands.describe(
     channel="The text channel where members will verify (defaults to #verify).",
-    unverified_role="The role new members receive until they verify (defaults to @unverified).",
+    unverified_role=(
+        "The role new members receive until they verify "
+        "(defaults to @unverified)."
+    ),
     verified_role="Optional role to give members after they verify.",
 )
 async def verify_setup(
@@ -462,10 +810,10 @@ async def verify_setup(
                 (
                     existing_channel,
                     unverified_role,
-                    copy.copy(previous_overwrite),
+                    _copy_overwrite(previous_overwrite),
                 )
             )
-            unverified_overwrite = copy.copy(previous_overwrite)
+            unverified_overwrite = _copy_overwrite(previous_overwrite)
             unverified_overwrite.view_channel = False
             await existing_channel.set_permissions(
                 unverified_role,
@@ -547,6 +895,69 @@ async def verify_setup(
             if verified_role is not None
             else "; no verified role will be added."
         ),
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
+
+
+@verify.command(
+    name="config",
+    description="Edit the verification channel and roles.",
+)
+async def verify_config(ctx: commands.Context) -> None:
+    guild = ctx.guild
+    if guild is None:
+        await ctx.send("This command can only be used in a server.")
+        return
+
+    settings = await _load_settings(ctx.bot, guild.id)
+    if settings is None:
+        await ctx.send(
+            "Verification isn't configured yet. Run `verify setup` first."
+        )
+        return
+
+    channel = guild.get_channel(settings["channel_id"])
+    unverified_role = guild.get_role(settings["unverified_role_id"])
+    verified_role_id = settings["verified_role_id"]
+    verified_role = (
+        guild.get_role(verified_role_id)
+        if verified_role_id is not None
+        else None
+    )
+    if not isinstance(channel, discord.TextChannel) or unverified_role is None:
+        logger.error(
+            "Verification configuration is missing a channel or unverified role "
+            "in guild %s.",
+            guild.id,
+        )
+        await ctx.send(
+            "The saved verification channel or unverified role no longer exists. "
+            "Run `verify setup` to configure verification again."
+        )
+        return
+    if verified_role_id is not None and verified_role is None:
+        logger.error(
+            "The configured verified role is missing in guild %s.",
+            guild.id,
+        )
+        await ctx.send(
+            "The saved verified role no longer exists. Run `verify setup` to "
+            "configure verification again."
+        )
+        return
+
+    view = VerificationConfigView(
+        ctx.bot,
+        guild,
+        ctx.author.id,
+        channel,
+        unverified_role,
+        verified_role,
+    )
+    view.message = await ctx.send(
+        embed=view.build_embed(),
+        view=view,
+        ephemeral=True,
         allowed_mentions=discord.AllowedMentions.none(),
     )
 
