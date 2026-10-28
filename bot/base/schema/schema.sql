@@ -30,6 +30,16 @@ CREATE TABLE IF NOT EXISTS verification_settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS gate_settings (
+    guild_id BIGINT PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    channel_id BIGINT,
+    welcome_message TEXT,
+    goodbye_message TEXT,
+    dm_message TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS extended_timeouts (
     guild_id BIGINT NOT NULL,
     member_id BIGINT NOT NULL,
