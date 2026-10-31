@@ -38,14 +38,6 @@ Module: `bot.extensions.automod.commands.guild_commands.automod`; alias: `am`
 - `warnings <member>` - Show a member's warnings
 - `warnings clear <member>` - Clear a member's warnings
 
-**Timeouts**
-
-
-**Moderation log**
-
-- `modlog set <channel>` - Set the channel for moderation action logs
-- `modlog disable` - Stop sending moderation action logs
-
 ### Global blacklist
 
 Module: `bot.extensions.blacklist.commands.global_commands.blacklist`; alias: `bl`
@@ -67,7 +59,6 @@ Module: `bot.extensions.administration.commands.guild_commands.channel`
 - `channel unlock [channel]` - Restore member messaging permissions
 - `channel hide [channel]` - Hide a channel from members
 - `channel unhide [channel]` - Restore member access to a channel
-- `channel slowmode <duration> [channel]` - Set or update a channel's slowmode
 - `channel topic <text> [channel]` - Set a channel's topic
 
 ### Bot profile
@@ -92,3 +83,4 @@ Module: `bot.extensions.owner.commands.*`
 - `steal emoji` - steal a single emoji
 - `steal emojis` - steal more than one emoji
 - `steal sticker` - Ok
+- `nickknock` - Need to update it to add `what/why am I...`
