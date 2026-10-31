@@ -83,4 +83,8 @@ Module: `bot.extensions.owner.commands.*`
 - `steal emoji` - steal a single emoji
 - `steal emojis` - steal more than one emoji
 - `steal sticker` - Ok
-- `nickknock` - Need to update it to add `what/why am I...`
+- `nickknock` - Renames the user to what they say after the words “am i” in a text,
+                for example it could be in anywhere in the sentence, “am i noury” or
+                “bro what am i a dumbass?” And the bot would reply with “yes, you’re noury/a dumbass”
+
+thank you noury for the description
