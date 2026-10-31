@@ -143,7 +143,12 @@ async def purge(
     ctx: commands.Context,
     count: app_commands.Range[int, 1, MAX_PURGE_LIMIT],
 ) -> None:
-    await _purge_messages(ctx, lambda _: True, limit=count)
+    await _purge_messages(
+        ctx,
+        lambda _: True,
+        limit=count,
+        before=ctx.message,
+    )
 
 
 @purge.command(name="count", description="Delete a specific number of recent messages.")

@@ -15,6 +15,15 @@ CREATE TABLE IF NOT EXISTS nickknock_settings (
     interval_seconds BIGINT NOT NULL DEFAULT 600
 );
 
+CREATE TABLE IF NOT EXISTS water_settings (
+    guild_id BIGINT PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    channel_id BIGINT,
+    interval_seconds BIGINT NOT NULL DEFAULT 3600,
+    ping_member_ids BIGINT[] NOT NULL DEFAULT '{}',
+    next_reminder_at TIMESTAMPTZ
+);
+
 CREATE TABLE IF NOT EXISTS modlog_settings (
     guild_id BIGINT PRIMARY KEY,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,

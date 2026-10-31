@@ -5,6 +5,10 @@ import asyncpg
 
 from bot.base.imports import discord, logger
 
+AM_I_NICKNAME_PATTERN = re.compile(
+    r"\bam\s+i\b\s+(.+?)\s*[.!?]*\s*$",
+    re.IGNORECASE,
+)
 NICKNAME_PATTERN = re.compile(
     r"^\s*i\s*(?:['’‘`´]\s*m|m|am)\s+(.+?)\s*$",
     re.IGNORECASE,
@@ -32,11 +36,16 @@ async def on_message(
     if database_pool is None:
         raise RuntimeError("The nickknock listener requires the bot's database pool.")
 
-    match = NICKNAME_PATTERN.fullmatch(message.content)
+    match = AM_I_NICKNAME_PATTERN.search(message.content)
+    is_am_i = match is not None
+    if match is None:
+        match = NICKNAME_PATTERN.fullmatch(message.content)
     if match is None:
         return
 
     nickname = match.group(1).strip()
+    if is_am_i:
+        nickname = nickname.rstrip(".!?").rstrip()
     if not nickname or len(nickname) > 32:
         return
 
@@ -60,7 +69,7 @@ async def on_message(
     _guild_cooldowns[message.guild.id] = cooldown_expires
     try:
         await message.reply(
-            f"Hi {nickname}",
+            f"Yes, you're {nickname}" if is_am_i else f"Hi {nickname}",
             allowed_mentions=discord.AllowedMentions.none(),
         )
     except discord.HTTPException as error:
