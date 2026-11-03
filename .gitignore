@@ -12,3 +12,4 @@ __pycache__/
 .cache/
 .local/
 uv
+.DS_Store
