@@ -290,15 +290,8 @@ async def tiktok_user(
 @app_commands.allowed_installs(guilds=True, users=True)
 async def tiktok_repost(
     ctx: commands.Context,
-    url: str | None = None,
+    url: str,
 ) -> None:
-    if url is None:
-        await ctx.send(
-            "Please provide a link to a TikTok video.",
-            allowed_mentions=discord.AllowedMentions.none(),
-        )
-        return
-
     url = url.strip()
     if TIKTOK_URL_PATTERN.fullmatch(url) is None:
         await ctx.send(
