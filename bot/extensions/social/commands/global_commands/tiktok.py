@@ -312,7 +312,7 @@ async def tiktok_repost(
             )
             return
 
-    filename = "tiktok.mp4"
+    filename = "axis.mp4"
     await ctx.send(
         view=_video_view(data, url, filename),
         file=discord.File(io.BytesIO(video), filename=filename),
