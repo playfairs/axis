@@ -629,7 +629,7 @@ async def on_raw_message_delete(
         target=_entity_label(cached.author) if cached else f"Unknown (`{payload.message_id}`)",
         details=details,
         severity="minor",
-        executor=entry.user if entry else None,
+        executor=entry.user if entry else cached.author if cached else None,
         reason=entry.reason if entry else None,
         timestamp=entry.created_at if entry else None,
     )
