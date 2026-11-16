@@ -19,9 +19,15 @@ async def _defer(ctx: commands.Context) -> None:
         await ctx.defer(ephemeral=True)
 
 
-async def _send_result(ctx: commands.Context, content: str) -> None:
+async def _send_result(
+    ctx: commands.Context,
+    content: str,
+    *,
+    delete_after: float | None = None,
+) -> None:
     await ctx.send(
         content,
+        delete_after=delete_after,
         ephemeral=ctx.interaction is not None,
         allowed_mentions=discord.AllowedMentions.none(),
     )
@@ -47,9 +53,10 @@ async def _purge_messages(
     check: Callable[[discord.Message], bool],
     *,
     limit: int = DEFAULT_PURGE_LIMIT,
-    before: discord.Message | None = None,
+    before: discord.Message | discord.Object | None = None,
     after: discord.Message | None = None,
     result: Callable[[int], str] | None = None,
+    include_invocation: bool = False,
 ) -> None:
     if not await _valid_count(ctx, limit):
         return
@@ -60,11 +67,18 @@ async def _purge_messages(
         return
 
     await _defer(ctx)
+    invocation_included = include_invocation and ctx.interaction is None
+    purge_limit = limit + int(invocation_included)
+    purge_before = (
+        discord.Object(id=ctx.message.id + 1)
+        if invocation_included
+        else before
+    )
     try:
         deleted = await channel.purge(
-            limit=limit,
+            limit=purge_limit,
             check=check,
-            before=before,
+            before=purge_before,
             after=after,
             reason=f"Purged by {ctx.author} ({ctx.author.id})",
         )
@@ -80,8 +94,10 @@ async def _purge_messages(
         )
         return
 
-    result_message = result or (lambda count: f"Purged **{count}** messages.")
-    await _send_result(ctx, result_message(len(deleted)))
+    result_message = result or (
+        lambda count: f"Purged **{count}** messages in {channel.mention}."
+    )
+    await _send_result(ctx, result_message(len(deleted)), delete_after=5)
 
 
 def _is_gif_url(url: str) -> bool:
@@ -141,13 +157,13 @@ def _message_has_gif(message: discord.Message) -> bool:
 @app_commands.default_permissions(manage_messages=True)
 async def purge(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT],
+    count: int,
 ) -> None:
     await _purge_messages(
         ctx,
         lambda _: True,
         limit=count,
-        before=ctx.message,
+        include_invocation=ctx.interaction is None,
     )
 
 
@@ -155,13 +171,13 @@ async def purge(
 @app_commands.describe(count="Number of messages to delete.")
 async def purge_count(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT],
+    count: int,
 ) -> None:
     await _purge_messages(
         ctx,
         lambda _: True,
         limit=count,
-        result=lambda deleted: f"Purged **{deleted}** messages.",
+        result=lambda deleted: f"Purged **{deleted}** messages in {ctx.channel}.",
     )
 
 
@@ -169,7 +185,7 @@ async def purge_count(
 @app_commands.describe(count="Maximum number of recent messages to check (default: 100).")
 async def purge_bot(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_messages(
         ctx,
@@ -185,7 +201,7 @@ async def purge_bot(
 async def purge_from(
     ctx: commands.Context,
     user: discord.Member,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_messages(
         ctx,
@@ -201,7 +217,7 @@ async def purge_from(
 async def purge_mentions(
     ctx: commands.Context,
     user: discord.Member | None = None,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     def contains_mention(message: discord.Message) -> bool:
         if not (
@@ -236,7 +252,7 @@ async def purge_mentions(
 @app_commands.describe(count="Maximum number of recent messages to check (default: 100).")
 async def purge_self(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_messages(
         ctx,
@@ -252,7 +268,7 @@ async def purge_self(
 async def purge_after(
     ctx: commands.Context,
     message_id: str,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_by_message_id(ctx, message_id, after=True, count=count)
 
@@ -263,7 +279,7 @@ async def purge_after(
 async def purge_before(
     ctx: commands.Context,
     message_id: str,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_by_message_id(ctx, message_id, after=False, count=count)
 
@@ -349,7 +365,7 @@ async def _purge_matching_content(
 async def purge_contains(
     ctx: commands.Context,
     content: str,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_matching_content(
         ctx,
@@ -370,7 +386,7 @@ async def purge_contains(
 async def purge_startswith(
     ctx: commands.Context,
     content: str,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_matching_content(
         ctx,
@@ -391,7 +407,7 @@ async def purge_startswith(
 async def purge_endswith(
     ctx: commands.Context,
     content: str,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_matching_content(
         ctx,
@@ -408,7 +424,7 @@ async def purge_endswith(
 @app_commands.describe(count="Maximum number of recent messages to check (default: 100).")
 async def purge_links(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_messages(
         ctx,
@@ -424,7 +440,7 @@ async def purge_links(
 @app_commands.describe(count="Maximum number of recent messages to check (default: 100).")
 async def purge_invites(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_messages(
         ctx,
@@ -440,7 +456,7 @@ async def purge_invites(
 @app_commands.describe(count="Maximum number of recent messages to check (default: 100).")
 async def purge_gifs(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_messages(
         ctx,
@@ -454,7 +470,7 @@ async def purge_gifs(
 @app_commands.describe(count="Maximum number of recent messages to check (default: 100).")
 async def purge_stickers(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_messages(
         ctx,
@@ -470,7 +486,7 @@ async def purge_stickers(
 @app_commands.describe(count="Maximum number of recent messages to check (default: 100).")
 async def purge_attachments(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_messages(
         ctx,
@@ -486,7 +502,7 @@ async def purge_attachments(
 @app_commands.describe(count="Maximum number of recent messages to check (default: 100).")
 async def purge_embeds(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     await _purge_messages(
         ctx,
@@ -500,7 +516,7 @@ async def purge_embeds(
 @app_commands.describe(count="Maximum number of recent messages to check (default: 100).")
 async def purge_reactions(
     ctx: commands.Context,
-    count: app_commands.Range[int, 1, MAX_PURGE_LIMIT] | None = None,
+    count: int | None = None,
 ) -> None:
     if count is not None and not await _valid_count(ctx, count):
         return

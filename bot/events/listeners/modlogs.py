@@ -645,7 +645,7 @@ async def on_raw_bulk_message_delete(
     if guild is None:
         return
     count = len(payload.message_ids)
-    entry = await _find_bulk_delete_audit_entry(guild, count)
+    entry = await _find_bulk_delete_audit_entry(bot, guild, count)
     cached_details = [
         f"• {_entity_label(message.author)}: `{_display(message.content, limit=250)}`"
         for message in payload.cached_messages[:10]
@@ -654,9 +654,10 @@ async def on_raw_bulk_message_delete(
         cached_details.append(
             f"…and {len(payload.cached_messages) - len(cached_details)} more cached messages"
         )
+    message_ids = sorted(payload.message_ids)
     details = [
         "**Message IDs:** "
-        + ", ".join(f"`{message_id}`" for message_id in payload.message_ids[:20])
+        + ", ".join(f"`{message_id}`" for message_id in message_ids[:20])
     ]
     if cached_details:
         details.append("**Cached messages:**\n" + "\n".join(cached_details))
