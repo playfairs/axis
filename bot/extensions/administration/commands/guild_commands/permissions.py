@@ -313,7 +313,7 @@ async def _change_role_permission(
     if guild is None:
         await _send_message(ctx, "This command can only be used in a server.")
         return
-    invalid_permissions = set(permissions) - discord.Permissions.VALID_FLAGS
+    invalid_permissions = set(permissions) - set(discord.Permissions.VALID_FLAGS)
     if invalid_permissions:
         await _send_message(
             ctx,
@@ -346,22 +346,6 @@ async def _change_role_permission(
         await _send_message(
             ctx,
             "My highest role must be above the role you want to change.",
-        )
-        return
-
-    missing_permissions = [
-        permission
-        for permission in permissions
-        if not (
-            ctx.author.guild_permissions.administrator
-            or getattr(ctx.author.guild_permissions, permission)
-        )
-    ] if grant else []
-    if missing_permissions:
-        await _send_message(
-            ctx,
-            "You can't grant permissions you don't have yourself: "
-            f"{_permission_labels(missing_permissions)}.",
         )
         return
 
