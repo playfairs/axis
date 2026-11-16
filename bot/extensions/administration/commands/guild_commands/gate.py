@@ -22,6 +22,16 @@ def _database_pool(bot: object) -> asyncpg.Pool:
     return pool
 
 
+def _gate_channel_overwrite() -> discord.PermissionOverwrite:
+    allowed = discord.Permissions(
+        view_channel=True,
+        read_message_history=True,
+        add_reactions=True,
+    )
+    denied = discord.Permissions.all_channel() ^ allowed
+    return discord.PermissionOverwrite.from_pair(allowed, denied)
+
+
 async def _load_settings(
     bot: object,
     guild_id: int,
@@ -691,6 +701,49 @@ async def gate_channel(
     await ctx.send(
         f"Gate messages will use {channel.mention}."
         + (" Gate messages are now enabled." if enabled else ""),
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
+
+
+@gate.command(name="setup", description="Create and configure the gate channel.")
+@commands.bot_has_guild_permissions(manage_channels=True)
+async def gate_setup(ctx: commands.Context) -> None:
+    guild = ctx.guild
+    if guild is None:
+        await ctx.send("This command can only be used in a server.")
+        return
+
+    overwrites = {guild.default_role: _gate_channel_overwrite()}
+    channel = discord.utils.get(guild.text_channels, name="gate")
+    if channel is None:
+        channel = await guild.create_text_channel(
+            name="gate",
+            overwrites=overwrites,
+            reason=f"Created by {ctx.author} via gate setup",
+        )
+    else:
+        await channel.edit(
+            overwrites=overwrites,
+            reason=f"Configured by {ctx.author} via gate setup",
+        )
+
+    await _set_setting(ctx.bot, guild.id, "channel_id", channel.id)
+    await _set_setting(
+        ctx.bot,
+        guild.id,
+        "welcome_message",
+        "Welcome {user.mention}",
+    )
+    await _set_setting(
+        ctx.bot,
+        guild.id,
+        "goodbye_message",
+        "Goodbye {user.mention}",
+    )
+    await _enable_if_ready(ctx.bot, guild.id)
+    await ctx.send(
+        f"Gate is set up in {channel.mention} with ro member access "
+        "and join/leave messages enabled. You can run `gate config` to edit this as well.",
         allowed_mentions=discord.AllowedMentions.none(),
     )
 
