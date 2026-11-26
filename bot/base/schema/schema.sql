@@ -94,3 +94,10 @@ CREATE TABLE IF NOT EXISTS message_counts (
     message_count BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (guild_id, user_id)
 );
+
+CREATE TABLE IF NOT EXISTS customs_guilds (
+    guild_id BIGINT PRIMARY KEY,
+    whitelisted BOOLEAN NOT NULL DEFAULT FALSE,
+    customizations JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

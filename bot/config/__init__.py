@@ -17,6 +17,7 @@ class COGS:
         "bot.extensions.administration",
         "bot.extensions.moderation",
         "bot.extensions.owner",
+        "bot.extensions.customs",
         "bot.extensions.utils",
     )
     SKIP = frozenset()

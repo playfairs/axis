@@ -48,7 +48,8 @@ def _command_modules() -> list[ModuleType]:
 
 
 async def setup(bot: commands.Bot) -> None:
-    for module in _command_modules():
+    modules = _command_modules()
+    for module in modules:
         module_commands = sorted(
             (
                 command
@@ -63,6 +64,13 @@ async def setup(bot: commands.Bot) -> None:
             bot.add_command(command)
             registered_commands.append(command.name)
             logger.info(f"Loaded command {command.name} from {module.__name__}")
+
+    for module in modules:
+        for event_name, listener in getattr(module, "listeners", {}).items():
+            callback = partial(listener, bot)
+            bot.add_listener(callback, event_name)
+            registered_listeners.append((callback, event_name))
+            logger.info(f"Loaded {event_name} listener from {module.__name__}")
 
     from bot.events.listeners import modlogs
 
